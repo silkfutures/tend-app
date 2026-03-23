@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { STEPS, STEP_COLORS, STEP_BG, INDICATORS, ARRIVAL_OPTIONS } from '@/lib/constants'
 
@@ -907,16 +907,16 @@ export default function Dashboard() {
   const [selectedYP, setSelectedYP] = useState(null)
   const [selectedSession, setSelectedSession] = useState(null)
 
-  const orgId = mentor?.org_id
+  const orgId = '00000000-0000-0000-0000-000000000001'
 
-  const loadData = useCallback(async (mid, oid) => {
+  const refreshData = async () => {
     const [ypRes, sessRes] = await Promise.all([
-      fetch(`/api/young-people?orgId=${oid}`).then(r => r.json()),
-      fetch(`/api/sessions?orgId=${oid}`).then(r => r.json()),
+      fetch('/api/young-people?orgId=all'),
+      fetch('/api/sessions?orgId=all'),
     ])
-    setYP(Array.isArray(ypRes) ? ypRes : [])
-    setSessions(Array.isArray(sessRes) ? sessRes : [])
-  }, [])
+    setYP(await ypRes.json())
+    setSessions(await sessRes.json())
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -943,22 +943,12 @@ export default function Dashboard() {
   const onSelectYP = (yp) => setSelectedYP(yp)
 
   const onDoneLog = async () => {
-    const [ypRes, sessRes] = await Promise.all([
-      fetch('/api/young-people?orgId=all'),
-      fetch('/api/sessions?orgId=all'),
-    ])
-    setYP(await ypRes.json())
-    setSessions(await sessRes.json())
+    await refreshData()
     setScreen('home')
   }
 
   const onDoneAddYP = async () => {
-    const [ypRes, sessRes] = await Promise.all([
-      fetch('/api/young-people?orgId=all'),
-      fetch('/api/sessions?orgId=all'),
-    ])
-    setYP(await ypRes.json())
-    setSessions(await sessRes.json())
+    await refreshData()
     setScreen('people')
   }
 
