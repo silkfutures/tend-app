@@ -47,7 +47,7 @@ function Card({ children, style={}, onClick }) {
 
 function StageBadge({ stage }) {
   if (!stage) return null
-  const cls = { Reset:'b-reset', Reframe:'b-reframe', Rebuild:'b-rebuild', Release:'b-release', Rise:'b-rise' }
+  const cls = { Early:'b-reset', Developing:'b-reframe', Established:'b-rebuild', Advanced:'b-release', Leading:'b-rise' }
   return <span className={`badge ${cls[stage]||'b-reset'}`}>{stage}</span>
 }
 
@@ -116,6 +116,9 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
     return daysSince > 10
   })
 
+  // Count days since last session for disengaged YP
+  const daysSince = disengaged ? Math.floor((Date.now() - new Date(sessions.filter(s => s.young_person_id === disengaged.id)[0]?.date)) / 86400000) : 0
+
   const openSG = sessions.filter(s => s.safeguarding_concern?.trim()).length
 
   return (
@@ -146,7 +149,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
         {youngPeople[0] && (() => {
           const yp = youngPeople[0]
           const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-          const stage = ypSessions[0]?.focus_step || 'Reset'
+          const stage = ypSessions[0]?.focus_step || 'Early'
           return (
             <div className="prep-card" onClick={() => { onSelectYP(yp); onNav('prep') }}>
               <div className="pc-eye"><PulseDot /> Tend Intelligence</div>
@@ -191,7 +194,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
         )}
         {youngPeople.map(yp => {
           const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-          const stage = ypSessions[0]?.focus_step || 'Reset'
+          const stage = ypSessions[0]?.focus_step || 'Early'
           return (
             <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
               <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
@@ -252,13 +255,13 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor }) {
         {disengaged && (
           <div className="ai-insight">
             <AITag />
-            <div className="ai-text">{disengaged.name} hasn't had a session in over 10 days. Based on their pattern, an early check-in could prevent disengagement.</div>
+            <div className="ai-text">{disengaged.name} hasn't had a session in {daysSince} days. Based on their pattern, an early check-in could help maintain momentum and prevent disengagement.</div>
           </div>
         )}
 
         {youngPeople.map(yp => {
           const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-          const stage = ypSessions[0]?.focus_step || 'Reset'
+          const stage = ypSessions[0]?.focus_step || 'Early'
           const hasSG = ypSessions.some(s => s.safeguarding_concern?.trim())
           return (
             <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
@@ -335,7 +338,7 @@ function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession }) {
 // ── SCREEN: YOUNG PERSON PROFILE ──
 function ProfileScreen({ yp, sessions, onNav, onBack }) {
   const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-  const stage = ypSessions[0]?.focus_step || 'Reset'
+  const stage = ypSessions[0]?.focus_step || 'Early'
   const totalSessions = ypSessions.length
 
   const avgScores = {}
@@ -398,7 +401,7 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
   const [error, setError] = useState(null)
 
   const ypSessions = sessions.filter(s => s.young_person_id === yp?.id)
-  const stage = ypSessions[0]?.focus_step || 'Reset'
+  const stage = ypSessions[0]?.focus_step || 'Early'
   const avgScores = {}
   INDICATORS.forEach(ind => {
     const vals = ypSessions.map(s => s.indicators?.[ind.key]).filter(Boolean)
@@ -504,7 +507,7 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
 // ── SCREEN: LOG SESSION ──
 function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
   const ypSessions = sessions.filter(s => s.young_person_id === yp?.id)
-  const stage = ypSessions[0]?.focus_step || 'Reset'
+  const stage = ypSessions[0]?.focus_step || 'Early'
 
   const [arrival, setArrival] = useState(null)
   const [notes, setNotes] = useState('')
@@ -734,7 +737,7 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
   STEPS.forEach(s => stageDist[s] = 0)
   youngPeople.forEach(yp => {
     const s = sessions.filter(x => x.young_person_id === yp.id)
-    const stage = s[0]?.focus_step || 'Reset'
+    const stage = s[0]?.focus_step || 'Early'
     stageDist[stage]++
   })
 
@@ -838,7 +841,7 @@ function InsightsScreen({ sessions, youngPeople, onNav }) {
   STEPS.forEach(s => stageCount[s] = 0)
   youngPeople.forEach(yp => {
     const s = sessions.filter(x => x.young_person_id === yp.id)
-    const stage = s[0]?.focus_step || 'Reset'
+    const stage = s[0]?.focus_step || 'Early'
     stageCount[stage]++
   })
 
@@ -922,7 +925,7 @@ export default function Dashboard() {
       const ypData = await res.json()
       const sessRes = await fetch(`/api/sessions?orgId=all`)
       const sessData = await sessRes.json()
-      setMentor({ name: 'Nathan', id: 'demo', org_id: 'demo', role: 'admin', organisations: { name: 'Silkfutures' } })
+      setMentor({ name: 'Nathan', id: 'demo', org_id: 'demo', role: 'admin', organisations: { name: 'Your Organisation' } })
       setYP(Array.isArray(ypData) ? ypData : [])
       setSessions(Array.isArray(sessData) ? sessData : [])
       setLoading(false)
@@ -1013,6 +1016,7 @@ export default function Dashboard() {
         .b-reset{background:#F0EEFF;color:#7060C0}
         .b-release{background:#E8F4FF;color:#3080C0}
         .b-rise{background:#FAEAEA;color:#C97070}
+        /* stage aliases */
         .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
         .qbtn{background:#fff;border:1px solid #DDE8DF;border-radius:16px;padding:16px 14px;cursor:pointer;transition:all 0.15s;text-align:left}
         .qbtn:active{background:#EAF2EC;transform:scale(0.97)}
