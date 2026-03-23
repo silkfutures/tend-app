@@ -116,8 +116,8 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
     return daysSince > 10
   })
 
-  // Count days since last session for disengaged YP
-  const daysSince = disengaged ? Math.floor((Date.now() - new Date(sessions.filter(s => s.young_person_id === disengaged.id)[0]?.date)) / 86400000) : 0
+
+
 
   const openSG = sessions.filter(s => s.safeguarding_concern?.trim()).length
 
@@ -255,7 +255,7 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor }) {
         {disengaged && (
           <div className="ai-insight">
             <AITag />
-            <div className="ai-text">{disengaged.name} hasn't had a session in {daysSince} days. Based on their pattern, an early check-in could help maintain momentum and prevent disengagement.</div>
+            <div className="ai-text">{disengaged.name} hasn't had a session in {Math.floor((Date.now() - new Date(sessions.filter(s => s.young_person_id === disengaged.id)[0]?.date)) / 86400000)} days. Based on their pattern, an early check-in could help maintain momentum and prevent disengagement.</div>
           </div>
         )}
 
