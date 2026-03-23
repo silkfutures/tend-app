@@ -920,30 +920,45 @@ export default function Dashboard() {
 
   useEffect(() => {
     const init = async () => {
-      // Temporary: load data without auth check
-      const res = await fetch(`/api/young-people?orgId=all`)
-      const ypData = await res.json()
-      const sessRes = await fetch(`/api/sessions?orgId=all`)
-      const sessData = await sessRes.json()
-      setMentor({ name: 'Nathan', id: 'demo', org_id: 'demo', role: 'admin', organisations: { name: 'Your Organisation' } })
-      setYP(Array.isArray(ypData) ? ypData : [])
-      setSessions(Array.isArray(sessData) ? sessData : [])
+      try {
+        const [ypRes, sessRes] = await Promise.all([
+          fetch('/api/young-people?orgId=all'),
+          fetch('/api/sessions?orgId=all'),
+        ])
+        const ypData = await ypRes.json()
+        const sessData = await sessRes.json()
+        setMentor({ name: 'Jordan', id: 'demo', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
+        setYP(Array.isArray(ypData) ? ypData : [])
+        setSessions(Array.isArray(sessData) ? sessData : [])
+      } catch(e) {
+        console.error('Load error:', e)
+      }
       setLoading(false)
     }
     init()
-  }, [loadData])
+  }, [])
 
   const nav = (s) => setScreen(s)
 
   const onSelectYP = (yp) => setSelectedYP(yp)
 
   const onDoneLog = async () => {
-    await loadData(mentor?.id, orgId)
+    const [ypRes, sessRes] = await Promise.all([
+      fetch('/api/young-people?orgId=all'),
+      fetch('/api/sessions?orgId=all'),
+    ])
+    setYP(await ypRes.json())
+    setSessions(await sessRes.json())
     setScreen('home')
   }
 
   const onDoneAddYP = async () => {
-    await loadData(mentor?.id, orgId)
+    const [ypRes, sessRes] = await Promise.all([
+      fetch('/api/young-people?orgId=all'),
+      fetch('/api/sessions?orgId=all'),
+    ])
+    setYP(await ypRes.json())
+    setSessions(await sessRes.json())
     setScreen('people')
   }
 
