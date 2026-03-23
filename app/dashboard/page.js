@@ -693,7 +693,7 @@ function AddYPScreen({ orgId, onDone, onBack }) {
           <div className="inp-label">Email</div>
           <input className="inp" type="email" placeholder="Optional" value={form.email} onChange={e => set('email', e.target.value)} />
           <div className="inp-label">Postcode / area</div>
-          <input className="inp" type="text" placeholder="e.g. CF10, Butetown..." value={form.postcode} onChange={e => set('postcode', e.target.value)} />
+          <input className="inp" type="text" placeholder="e.g. postcode or area" value={form.postcode} onChange={e => set('postcode', e.target.value)} />
         </Card>
         <button className="btn-p" onClick={save} disabled={saving || !form.name.trim()} style={{ opacity: !form.name.trim() || saving ? 0.5 : 1 }}>
           {saving ? 'Adding...' : 'Add to caseload →'}

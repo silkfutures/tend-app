@@ -9,21 +9,16 @@ const S = {
   logoWord: { fontFamily:"'Outfit', sans-serif", fontWeight:300, fontSize:'28px', letterSpacing:'0.14em', color:'white', display:'block', marginTop:'12px' },
   tagline: { fontSize:'11px', color:'rgba(255,255,255,0.4)', letterSpacing:'0.14em', textTransform:'uppercase', marginTop:'4px', display:'block' },
   card: { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'20px', padding:'28px' },
-  tabs: { display:'flex', gap:'0', marginBottom:'24px', background:'rgba(255,255,255,0.06)', borderRadius:'10px', padding:'3px' },
-  tab: (active) => ({ flex:1, padding:'9px 0', borderRadius:'8px', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:"'Outfit', sans-serif", letterSpacing:'0.02em', background: active ? 'rgba(255,255,255,0.12)' : 'transparent', color: active ? 'white' : 'rgba(255,255,255,0.4)', transition:'all 0.2s' }),
   label: { display:'block', fontSize:'10px', fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', marginBottom:'6px' },
   input: { width:'100%', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'12px', padding:'12px 14px', fontSize:'14px', color:'white', fontFamily:"'Outfit', sans-serif", fontWeight:300, outline:'none', boxSizing:'border-box', marginBottom:'14px' },
   btn: { width:'100%', background:'#4A7C59', color:'white', border:'none', borderRadius:'12px', padding:'14px', fontSize:'14px', fontWeight:500, fontFamily:"'Outfit', sans-serif", cursor:'pointer', letterSpacing:'0.03em', marginTop:'4px' },
   error: { fontSize:'12px', color:'#E09090', textAlign:'center', marginTop:'12px', lineHeight:'1.5' },
-  divider: { borderTop:'1px solid rgba(255,255,255,0.08)', margin:'18px 0' },
-  hint: { fontSize:'11px', color:'rgba(255,255,255,0.3)', textAlign:'center', lineHeight:'1.5' },
 }
 
 export default function LoginPage() {
-  const [mode, setMode] = useState('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ email:'', password:'', name:'', orgName:'' })
+  const [form, setForm] = useState({ email:'', password:'' })
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -33,33 +28,6 @@ export default function LoginPage() {
     const { error: e } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
     if (e) { setError(e.message); setLoading(false); return }
     window.location.href = '/dashboard'
-  }
-
-  const handleSignup = async () => {
-    if (!form.email || !form.password || !form.name || !form.orgName) { setError('Please fill in all fields'); return }
-    if (form.password.length < 8) { setError('Password must be at least 8 characters'); return }
-    setLoading(true); setError('')
-    try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password })
-      if (authError) throw authError
-
-      // Create org + mentor via API
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'signup', email: form.email, name: form.name, orgName: form.orgName, userId: authData.user?.id })
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-
-      // Sign in
-      await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
-      window.location.href = '/dashboard'
-    } catch (e) {
-      setError(e.message)
-      setLoading(false)
-    }
   }
 
   return (
@@ -76,39 +44,17 @@ export default function LoginPage() {
         </div>
 
         <div style={S.card}>
-          <div style={S.tabs}>
-            <button style={S.tab(mode==='login')} onClick={() => { setMode('login'); setError('') }}>Sign in</button>
-            <button style={S.tab(mode==='signup')} onClick={() => { setMode('signup'); setError('') }}>Create account</button>
-          </div>
-
-          {mode === 'login' ? (
-            <>
-              <label style={S.label}>Email</label>
-              <input style={S.input} type="email" placeholder="you@organisation.com" value={form.email} onChange={e => set('email', e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-              <label style={S.label}>Password</label>
-              <input style={S.input} type="password" placeholder="••••••••" value={form.password} onChange={e => set('password', e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-              <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleLogin} disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign in →'}
-              </button>
-            </>
-          ) : (
-            <>
-              <label style={S.label}>Your name</label>
-              <input style={S.input} type="text" placeholder="Your full name" value={form.name} onChange={e => set('name', e.target.value)} />
-              <label style={S.label}>Organisation name</label>
-              <input style={S.input} type="text" placeholder="e.g. Action for Children" value={form.orgName} onChange={e => set('orgName', e.target.value)} />
-              <div style={S.divider} />
-              <label style={S.label}>Email</label>
-              <input style={S.input} type="email" placeholder="you@organisation.com" value={form.email} onChange={e => set('email', e.target.value)} />
-              <label style={S.label}>Password</label>
-              <input style={S.input} type="password" placeholder="Min. 8 characters" value={form.password} onChange={e => set('password', e.target.value)} />
-              <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleSignup} disabled={loading}>
-                {loading ? 'Creating account...' : 'Create account →'}
-              </button>
-              <p style={{ ...S.hint, marginTop:'14px' }}>You'll be the admin for your organisation. You can invite mentors after signing up.</p>
-            </>
-          )}
-
+          <label style={S.label}>Email</label>
+          <input style={S.input} type="email" placeholder="you@organisation.com" value={form.email}
+            onChange={e => set('email', e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+          <label style={S.label}>Password</label>
+          <input style={S.input} type="password" placeholder="••••••••" value={form.password}
+            onChange={e => set('password', e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+          <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleLogin} disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign in →'}
+          </button>
           {error && <p style={S.error}>{error}</p>}
         </div>
       </div>
