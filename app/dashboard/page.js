@@ -917,13 +917,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { window.location.href = '/'; return }
-      const res = await fetch(`/api/auth?userId=${user.id}`)
-      const m = await res.json()
-      if (!m || m.error) { window.location.href = '/'; return }
-      setMentor(m)
-      await loadData(m.id, m.org_id)
+      // Temporary: load data without auth check
+      const res = await fetch(`/api/young-people?orgId=all`)
+      const ypData = await res.json()
+      const sessRes = await fetch(`/api/sessions?orgId=all`)
+      const sessData = await sessRes.json()
+      setMentor({ name: 'Nathan', id: 'demo', org_id: 'demo', role: 'admin', organisations: { name: 'Silkfutures' } })
+      setYP(Array.isArray(ypData) ? ypData : [])
+      setSessions(Array.isArray(sessData) ? sessData : [])
       setLoading(false)
     }
     init()

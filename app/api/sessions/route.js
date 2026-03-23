@@ -4,13 +4,10 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url)
   const orgId = searchParams.get('orgId')
   const ypId = searchParams.get('ypId')
-
   const sb = getServiceClient()
   let query = sb.from('sessions').select('*, young_people(name, id)')
-
   if (ypId) query = query.eq('young_person_id', ypId)
-  else if (orgId) query = query.eq('org_id', orgId)
-
+  else if (orgId && orgId !== 'all') query = query.eq('org_id', orgId)
   const { data, error } = await query.order('date', { ascending: false })
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json(data || [])
@@ -21,8 +18,6 @@ export async function POST(req) {
   const sb = getServiceClient()
   const { data, error } = await sb.from('sessions').insert(body).select().single()
   if (error) return Response.json({ error: error.message }, { status: 500 })
-
-  // Flag safeguarding if concern raised
   if (body.safeguarding_concern?.trim()) {
     await sb.from('safeguarding_cases').insert({
       org_id: body.org_id,
@@ -33,6 +28,5 @@ export async function POST(req) {
       status: 'open',
     })
   }
-
   return Response.json(data)
 }

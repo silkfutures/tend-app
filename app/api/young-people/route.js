@@ -4,11 +4,9 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url)
   const orgId = searchParams.get('orgId')
   const sb = getServiceClient()
-  const { data, error } = await sb
-    .from('young_people')
-    .select('*')
-    .eq('org_id', orgId)
-    .order('name')
+  let query = sb.from('young_people').select('*').order('name')
+  if (orgId && orgId !== 'all') query = query.eq('org_id', orgId)
+  const { data, error } = await query
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json(data || [])
 }
