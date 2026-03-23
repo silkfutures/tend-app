@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+
 import { STEPS, STEP_COLORS, STEP_BG, INDICATORS, ARRIVAL_OPTIONS } from '@/lib/constants'
 
 // ── DESIGN TOKENS ──
