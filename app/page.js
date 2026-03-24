@@ -66,6 +66,13 @@ export default function LoginPage() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
 
+      // Send confirmation email via Resend directly
+      await fetch('/api/send-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, name: form.name })
+      })
+
       setSuccess(`Check your inbox at ${form.email} — we've sent you a confirmation link to activate your account.`)
       setLoading(false)
     } catch (e) {
