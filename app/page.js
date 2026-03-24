@@ -43,43 +43,18 @@ export default function LoginPage() {
     if (form.password.length < 8) { setError('Password must be at least 8 characters'); return }
     setLoading(true); setError('')
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-        emailRedirectTo: `https://tend-app-murex.vercel.app/dashboard`,
-        }
-      })
-      if (authError) throw authError
-
-      // Create org + mentor profile
-      const res = await fetch('/api/auth', {
+      const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'signup',
-          email: form.email,
-          name: form.name,
-          orgName: form.orgName,
-          userId: authData.user?.id
-        })
+        body: JSON.stringify({ email: form.email, password: form.password, name: form.name, orgName: form.orgName })
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-
-      // Send confirmation email via Resend directly
-      await fetch('/api/send-confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, name: form.name })
-      })
-
       setSuccess(`Check your inbox at ${form.email} — we've sent you a confirmation link to activate your account.`)
-      setLoading(false)
     } catch (e) {
       setError(e.message)
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   return (
