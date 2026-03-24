@@ -1,0 +1,311 @@
+<!--
+  Tend Chatbot Widget
+  Embed this on tendmentorapp.com or any page.
+  Requires: /api/chatbot endpoint running on the same domain.
+
+  To embed on an external page, update the apiEndpoint in the
+  TendChatbot constructor at the bottom of this file to the full URL:
+  e.g. 'https://tend-app-murex.vercel.app/api/chatbot'
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tend Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,300&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --forest: #1C2C22;
+            --deep: #2D4A3E;
+            --sage: #4A7C59;
+            --growth: #6BAF7C;
+            --mist: #C5DECA;
+            --pale: #EAF2EC;
+            --cream: #F7F4EE;
+            --white: #FFFFFF;
+            --border: #DDE8DF;
+            --mid: #4A6455;
+            --muted: #8FAA96;
+        }
+        body { font-family: 'Outfit', sans-serif; font-weight: 400; color: var(--forest); }
+
+        /* Floating button */
+        .tend-chat-btn {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 56px; height: 56px;
+            background: var(--sage); border: none; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(28,44,34,0.18);
+            transition: all 0.3s ease; z-index: 10000;
+        }
+        .tend-chat-btn:hover { background: var(--growth); transform: scale(1.08); }
+        .tend-chat-btn svg { width: 26px; height: 26px; }
+
+        /* Panel */
+        .tend-chat-panel {
+            position: fixed; bottom: 96px; right: 24px;
+            width: 360px; height: 520px;
+            background: var(--white); border: 1px solid var(--border); border-radius: 18px;
+            display: flex; flex-direction: column;
+            box-shadow: 0 8px 40px rgba(28,44,34,0.14);
+            z-index: 9999;
+            opacity: 0; transform: scale(0.92) translateY(16px);
+            pointer-events: none; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .tend-chat-panel.open {
+            opacity: 1; transform: scale(1) translateY(0); pointer-events: auto;
+        }
+
+        /* Header */
+        .tend-chat-header {
+            padding: 18px 20px;
+            background: linear-gradient(135deg, var(--forest) 0%, var(--deep) 100%);
+            border-radius: 18px 18px 0 0;
+            color: var(--white); display: flex; align-items: center; gap: 14px;
+        }
+        .tend-chat-header h2 {
+            font-family: 'Fraunces', serif; font-weight: 300; font-style: italic;
+            font-size: 20px; letter-spacing: 0.5px;
+        }
+        .tend-chat-header p { font-size: 13px; opacity: 0.8; font-weight: 300; margin-top: 2px; }
+
+        /* Messages */
+        .tend-chat-messages {
+            flex: 1; overflow-y: auto; padding: 16px 16px 8px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .tend-chat-messages::-webkit-scrollbar { width: 5px; }
+        .tend-chat-messages::-webkit-scrollbar-thumb { background: var(--mist); border-radius: 3px; }
+
+        .tend-msg { display: flex; animation: msgIn 0.25s ease; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .tend-msg.user { justify-content: flex-end; }
+        .tend-msg.bot { justify-content: flex-start; }
+
+        .tend-msg-bubble {
+            max-width: 78%; padding: 10px 14px; border-radius: 14px;
+            font-size: 14px; line-height: 1.5; word-wrap: break-word;
+        }
+        .tend-msg.user .tend-msg-bubble {
+            background: var(--sage); color: var(--white); border-bottom-right-radius: 4px;
+        }
+        .tend-msg.bot .tend-msg-bubble {
+            background: var(--pale); color: var(--forest); border-bottom-left-radius: 4px;
+        }
+        .tend-msg-bubble a { color: inherit; text-decoration: underline; font-weight: 500; }
+
+        /* Typing dots */
+        .tend-typing { display: flex; gap: 5px; padding: 10px 14px; background: var(--pale); border-radius: 14px; border-bottom-left-radius: 4px; width: fit-content; }
+        .tend-dot { width: 7px; height: 7px; background: var(--sage); border-radius: 50%; animation: dotPulse 1.4s infinite; }
+        .tend-dot:nth-child(2) { animation-delay: 0.2s; }
+        .tend-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse { 0%,100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4px); } }
+
+        /* Input */
+        .tend-chat-input-wrap {
+            padding: 14px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px;
+        }
+        .tend-chat-input {
+            flex: 1; border: 1px solid var(--border); border-radius: 12px;
+            padding: 10px 14px; font-family: 'Outfit', sans-serif; font-size: 14px;
+            color: var(--forest); font-weight: 300; transition: border-color 0.2s;
+        }
+        .tend-chat-input:focus { outline: none; border-color: var(--sage); box-shadow: 0 0 0 3px rgba(74,124,89,0.1); }
+        .tend-chat-input::placeholder { color: var(--muted); }
+
+        .tend-send-btn {
+            background: var(--sage); border: none; color: var(--white);
+            border-radius: 12px; width: 40px; height: 40px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; flex-shrink: 0;
+        }
+        .tend-send-btn:hover:not(:disabled) { background: var(--growth); }
+        .tend-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .tend-send-btn svg { width: 18px; height: 18px; fill: var(--white); }
+
+        /* Welcome */
+        .tend-welcome {
+            text-align: center; padding: 28px 20px; color: var(--mid); font-size: 13px; line-height: 1.6;
+        }
+        .tend-welcome strong { color: var(--forest); display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
+
+        /* Quick actions */
+        .tend-quick-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+        .tend-quick-btn {
+            background: var(--pale); border: 1px solid var(--mist); border-radius: 20px;
+            padding: 6px 12px; font-size: 12px; color: var(--sage); font-family: 'Outfit', sans-serif;
+            font-weight: 500; cursor: pointer; transition: all 0.2s;
+        }
+        .tend-quick-btn:hover { background: var(--sage); color: var(--white); border-color: var(--sage); }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+            .tend-chat-panel { width: calc(100vw - 32px); height: calc(100vh - 120px); right: 16px; left: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Chat Button -->
+<button class="tend-chat-btn" id="tendToggle" aria-label="Chat with Tend">
+    <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+    </svg>
+</button>
+
+<!-- Chat Panel -->
+<div class="tend-chat-panel" id="tendPanel">
+    <div class="tend-chat-header">
+        <!-- The Arc logo -->
+        <svg width="36" height="36" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 38 Q7 6 22 6 Q37 6 37 38" stroke="#6BAF7C" stroke-width="2.5" fill="none"/>
+            <path d="M13 38 Q13 14 22 14 Q31 14 31 38" stroke="white" stroke-width="2.5" fill="none"/>
+            <circle cx="22" cy="8" r="3.2" fill="white"/>
+        </svg>
+        <div>
+            <h2>Tend</h2>
+            <p>Ask me anything about Tend</p>
+        </div>
+    </div>
+
+    <div class="tend-chat-messages" id="tendMessages">
+        <div class="tend-welcome">
+            <strong>Hi — welcome to Tend</strong>
+            I can answer questions about the platform, pricing, or help you book a demo. What would you like to know?
+        </div>
+    </div>
+
+    <!-- Quick action buttons -->
+    <div class="tend-quick-actions" id="tendQuickActions">
+        <button class="tend-quick-btn" data-msg="What does Tend do?">What is Tend?</button>
+        <button class="tend-quick-btn" data-msg="How much does Tend cost?">Pricing</button>
+        <button class="tend-quick-btn" data-msg="I'd like to book a demo">Book a demo</button>
+        <button class="tend-quick-btn" data-msg="Is my data secure with Tend?">Data security</button>
+    </div>
+
+    <div class="tend-chat-input-wrap">
+        <input type="text" class="tend-chat-input" id="tendInput" placeholder="Type your question..." autocomplete="off" />
+        <button class="tend-send-btn" id="tendSend" aria-label="Send">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+    </div>
+</div>
+
+<script>
+class TendChatbot {
+    constructor(config = {}) {
+        this.apiEndpoint = config.apiEndpoint || '/api/chatbot';
+        this.history = [];
+        this.loading = false;
+        this.msgCount = 0;
+        this.init();
+    }
+
+    init() {
+        document.getElementById('tendToggle').addEventListener('click', () => this.toggle());
+        document.getElementById('tendSend').addEventListener('click', () => this.send());
+        document.getElementById('tendInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); }
+        });
+
+        // Quick action buttons
+        document.querySelectorAll('.tend-quick-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('tendInput').value = btn.dataset.msg;
+                this.send();
+            });
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.tend-chat-panel') && !e.target.closest('.tend-chat-btn')) {
+                document.getElementById('tendPanel').classList.remove('open');
+            }
+        });
+    }
+
+    toggle() { document.getElementById('tendPanel').classList.toggle('open'); }
+
+    async send() {
+        const input = document.getElementById('tendInput');
+        const msg = input.value.trim();
+        if (!msg || this.loading) return;
+
+        // Hide quick actions after first message
+        const qa = document.getElementById('tendQuickActions');
+        if (qa) qa.style.display = 'none';
+
+        this.addMsg('user', msg);
+        input.value = '';
+        this.showTyping();
+
+        try {
+            const messages = [...this.history, { role: 'user', content: msg }];
+            const res = await fetch(this.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages }),
+            });
+
+            if (!res.ok) throw new Error(`${res.status}`);
+            const data = await res.json();
+            const reply = data.message || "Sorry, I couldn't process that. Try emailing support@tendmentorapp.com.";
+
+            this.hideTyping();
+            this.addMsg('bot', reply);
+            this.history.push({ role: 'user', content: msg }, { role: 'assistant', content: reply });
+
+            // Keep last 20 messages
+            if (this.history.length > 20) this.history = this.history.slice(-20);
+        } catch (err) {
+            this.hideTyping();
+            console.error('Tend chat error:', err);
+            this.addMsg('bot', "Sorry, something went wrong. You can reach us at support@tendmentorapp.com.");
+        }
+    }
+
+    addMsg(role, content) {
+        const container = document.getElementById('tendMessages');
+        if (this.msgCount === 0) {
+            const welcome = container.querySelector('.tend-welcome');
+            if (welcome) welcome.remove();
+        }
+        const div = document.createElement('div');
+        div.className = `tend-msg ${role}`;
+        const bubble = document.createElement('div');
+        bubble.className = 'tend-msg-bubble';
+        bubble.innerHTML = content
+            .replace(/https?:\/\/[^\s]+/g, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`)
+            .replace(/\n/g, '<br>');
+        div.appendChild(bubble);
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+        this.msgCount++;
+    }
+
+    showTyping() {
+        const container = document.getElementById('tendMessages');
+        const el = document.createElement('div');
+        el.className = 'tend-msg bot'; el.id = 'tendTyping';
+        el.innerHTML = '<div class="tend-typing"><div class="tend-dot"></div><div class="tend-dot"></div><div class="tend-dot"></div></div>';
+        container.appendChild(el);
+        container.scrollTop = container.scrollHeight;
+        this.loading = true;
+    }
+
+    hideTyping() {
+        const el = document.getElementById('tendTyping');
+        if (el) el.remove();
+        this.loading = false;
+    }
+}
+
+// Init
+document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', () => { window.tendChat = new TendChatbot(); })
+    : (window.tendChat = new TendChatbot());
+</script>
+</body>
+</html>
