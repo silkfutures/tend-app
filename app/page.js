@@ -46,7 +46,7 @@ export default function LoginPage() {
         email: form.email,
         password: form.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `https://tend-app-murex.vercel.app/dashboard`,
         }
       })
       if (authError) throw authError
