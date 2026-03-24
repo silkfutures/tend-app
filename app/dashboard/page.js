@@ -921,17 +921,48 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Dynamically import supabase to avoid SSR issues
+        const { getSupabase } = await import('@/lib/supabase')
+        const sb = getSupabase()
+        const { data: { user } } = await sb.auth.getUser()
+
+        if (user) {
+          // Authenticated — load real data
+          const mentorRes = await fetch(`/api/auth?userId=${user.id}&email=${encodeURIComponent(user.email)}`)
+          const mentorData = await mentorRes.json()
+
+          if (mentorData) {
+            setMentor(mentorData)
+            const [ypRes, sessRes] = await Promise.all([
+              fetch(`/api/young-people?orgId=${mentorData.org_id}`),
+              fetch(`/api/sessions?orgId=${mentorData.org_id}`),
+            ])
+            setYP(await ypRes.json())
+            setSessions(await sessRes.json())
+          } else {
+            // No profile yet — show empty state
+            setMentor({ name: user.email, id: user.id, org_id: null, role: 'admin', organisations: { name: 'Your Organisation' } })
+          }
+        } else {
+          // Not authenticated — load demo data
+          const [ypRes, sessRes] = await Promise.all([
+            fetch('/api/young-people?orgId=all'),
+            fetch('/api/sessions?orgId=all'),
+          ])
+          setMentor({ name: 'Jordan', id: 'demo', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
+          setYP(await ypRes.json())
+          setSessions(await sessRes.json())
+        }
+      } catch(e) {
+        console.error('Load error:', e)
+        // Fallback to demo
         const [ypRes, sessRes] = await Promise.all([
           fetch('/api/young-people?orgId=all'),
           fetch('/api/sessions?orgId=all'),
         ])
-        const ypData = await ypRes.json()
-        const sessData = await sessRes.json()
         setMentor({ name: 'Jordan', id: 'demo', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
-        setYP(Array.isArray(ypData) ? ypData : [])
-        setSessions(Array.isArray(sessData) ? sessData : [])
-      } catch(e) {
-        console.error('Load error:', e)
+        setYP(await ypRes.json())
+        setSessions(await sessRes.json())
       }
       setLoading(false)
     }
