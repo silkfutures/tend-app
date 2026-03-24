@@ -99,6 +99,169 @@ function BottomNav({ active, onNav }) {
   )
 }
 
+// ── EMPTY STATE (reusable) ──
+function EmptyState({ onAdd }) {
+  return (
+    <div style={{ textAlign:'center', padding:'48px 24px' }}>
+      <div style={{ marginBottom:20, opacity:0.7 }}>
+        <ArcMark size={48} />
+      </div>
+      <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:300, color:T.dark, marginBottom:8, lineHeight:1.3 }}>Your caseload is empty</div>
+      <div style={{ fontSize:13, color:T.muted, fontWeight:300, lineHeight:1.6, marginBottom:24, maxWidth:260, margin:'0 auto 24px' }}>Add a young person to get started with Tend — session prep, logging, and insights will be ready for you.</div>
+      <button className="btn-p" style={{ maxWidth:280, margin:'0 auto' }} onClick={onAdd}>Add your first young person →</button>
+    </div>
+  )
+}
+
+
+// ── SCREEN: ONBOARDING WELCOME ──
+function OnboardingWelcome({ mentor, onNext }) {
+  const firstName = mentor?.name?.split(' ')[0] || 'there'
+  return (
+    <div className="screen active" style={{ alignItems:'center', justifyContent:'center', padding:32, background:T.forest }}>
+      <div style={{ textAlign:'center', maxWidth:340 }}>
+        <div style={{ marginBottom:24 }}>
+          <ArcMark size={64} light />
+        </div>
+        <div style={{ fontFamily:"'Outfit',sans-serif", fontWeight:300, fontSize:24, letterSpacing:'0.14em', color:'white', marginBottom:32 }}>tend</div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:300, color:T.cream, lineHeight:1.3, marginBottom:12 }}>
+          Welcome to Tend, {firstName}
+        </div>
+        <div style={{ fontSize:14, fontWeight:300, color:'rgba(255,255,255,0.55)', lineHeight:1.65, marginBottom:40 }}>
+          AI-powered mentoring intelligence — session prep, safeguarding, and impact reporting, all in one place.
+        </div>
+        <button onClick={onNext} style={{ width:'100%', background:T.sage, color:'white', border:'none', borderRadius:14, padding:16, fontSize:15, fontWeight:500, fontFamily:"'Outfit',sans-serif", cursor:'pointer', letterSpacing:'0.03em' }}>
+          Let's get started →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── SCREEN: ONBOARDING WORK CONTEXT ──
+function OnboardingWorkContext({ mentor, onNext, onUpdateMentor }) {
+  const [selected, setSelected] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const options = [
+    { value: 'youth_mentoring', label: 'Youth mentoring', icon: '🤝', desc: 'One-to-one or group mentoring' },
+    { value: 'violence_prevention', label: 'Violence prevention', icon: '🛡️', desc: 'Intervention and diversion work' },
+    { value: 'school_pastoral', label: 'School pastoral', icon: '🏫', desc: 'In-school wellbeing support' },
+    { value: 'other_support', label: 'Other support work', icon: '💬', desc: 'Counselling, outreach, or other' },
+  ]
+
+  const handleNext = async () => {
+    if (!selected) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/mentors', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: mentor.id, work_context: selected })
+      })
+      const data = await res.json()
+      if (data && !data.error) onUpdateMentor(data)
+    } catch(e) {}
+    setSaving(false)
+    onNext()
+  }
+
+  return (
+    <div className="screen active slide-in" style={{ background:T.bg }}>
+      <div style={{ padding:'40px 18px 18px' }}>
+        <div style={{ fontSize:10, fontWeight:500, letterSpacing:'0.18em', textTransform:'uppercase', color:T.muted, marginBottom:6 }}>Step 1 of 2</div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:300, color:T.dark, lineHeight:1.2, marginBottom:6 }}>What kind of <em style={{ color:T.sage }}>work</em> do you do?</div>
+        <div style={{ fontSize:13, color:T.muted, fontWeight:300, marginBottom:24 }}>This helps Tend tailor AI prompts to your practice.</div>
+      </div>
+      <div style={{ padding:'0 18px', flex:1 }}>
+        {options.map(opt => (
+          <div key={opt.value} onClick={() => setSelected(opt.value)} style={{
+            background: T.white,
+            border: `1.5px solid ${selected === opt.value ? T.sage : T.border}`,
+            borderRadius: 16,
+            padding: '16px 18px',
+            marginBottom: 10,
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            ...(selected === opt.value ? { background: T.pale } : {})
+          }}>
+            <div style={{ width:44, height:44, borderRadius:12, background: selected === opt.value ? T.white : T.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>{opt.icon}</div>
+            <div>
+              <div style={{ fontSize:14, fontWeight:500, color:T.dark, marginBottom:2 }}>{opt.label}</div>
+              <div style={{ fontSize:12, color:T.muted, fontWeight:300 }}>{opt.desc}</div>
+            </div>
+            {selected === opt.value && (
+              <div style={{ marginLeft:'auto', width:22, height:22, borderRadius:'50%', background:T.sage, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <span style={{ color:'white', fontSize:12, fontWeight:600 }}>✓</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ padding:'18px 18px 40px' }}>
+        <button onClick={handleNext} disabled={!selected || saving} style={{
+          width:'100%', background: selected ? T.sage : T.mist, color:'white', border:'none', borderRadius:14, padding:16, fontSize:15, fontWeight:500, fontFamily:"'Outfit',sans-serif", cursor: selected ? 'pointer' : 'default', letterSpacing:'0.03em', opacity: saving ? 0.6 : 1, transition:'all 0.2s',
+        }}>
+          {saving ? 'Saving...' : 'Continue →'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── SCREEN: ONBOARDING ADD FIRST YP ──
+function OnboardingAddYP({ orgId, onDone, onSkip }) {
+  const [form, setForm] = useState({ name:'', postcode:'' })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const save = async () => {
+    if (!form.name.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/young-people', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ name: form.name.trim(), postcode: form.postcode.trim() || null, org_id: orgId })
+      })
+      const data = await res.json()
+      setSaving(false)
+      onDone(data)
+    } catch(e) {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="screen active slide-in" style={{ background:T.bg }}>
+      <div style={{ padding:'40px 18px 18px' }}>
+        <div style={{ fontSize:10, fontWeight:500, letterSpacing:'0.18em', textTransform:'uppercase', color:T.muted, marginBottom:6 }}>Step 2 of 2</div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:300, color:T.dark, lineHeight:1.2, marginBottom:6 }}>Add your first <em style={{ color:T.sage }}>young person</em></div>
+        <div style={{ fontSize:13, color:T.muted, fontWeight:300, marginBottom:24 }}>You can add more later — just one to get started.</div>
+      </div>
+      <div style={{ padding:'0 18px', flex:1 }}>
+        <Card>
+          <div className="inp-label">Name *</div>
+          <input className="inp" type="text" placeholder="Their name" value={form.name} onChange={e => set('name', e.target.value)} />
+          <div className="inp-label">Postcode / area</div>
+          <input className="inp" type="text" placeholder="e.g. CF10 or Butetown" value={form.postcode} onChange={e => set('postcode', e.target.value)} />
+        </Card>
+      </div>
+      <div style={{ padding:'18px 18px 40px' }}>
+        <button onClick={save} disabled={!form.name.trim() || saving} className="btn-p" style={{ opacity: !form.name.trim() || saving ? 0.5 : 1 }}>
+          {saving ? 'Adding...' : 'Add them now →'}
+        </button>
+        <button onClick={onSkip} style={{ width:'100%', background:'none', border:'none', color:T.muted, padding:14, fontSize:13, fontWeight:400, fontFamily:"'Outfit',sans-serif", cursor:'pointer', letterSpacing:'0.04em', marginTop:4 }}>
+          Skip for now
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
 // ── SCREEN: HOME ──
 function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession }) {
   const hour = new Date().getHours()
@@ -107,7 +270,6 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
   const today = new Date().toISOString().split('T')[0]
   const todayCount = sessions.filter(s => s.date === today).length
 
-  // Find YP with no recent session (>10 days)
   const disengaged = youngPeople.find(yp => {
     const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
     if (!ypSessions.length) return false
@@ -115,9 +277,6 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
     const daysSince = Math.floor((Date.now() - last) / 86400000)
     return daysSince > 10
   })
-
-
-
 
   const openSG = sessions.filter(s => s.safeguarding_concern?.trim()).length
 
@@ -131,105 +290,100 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
       <div className="body-start" />
       <div className="scroll">
 
-        {/* Today hero */}
-        <div className="today-hero">
-          <div>
-            <div className="th-count">{youngPeople.length}</div>
-            <div className="th-label">in your caseload</div>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
-            {youngPeople.slice(0,3).map(yp => (
-              <div key={yp.id} className="th-chip">{yp.name}</div>
-            ))}
-            {youngPeople.length > 3 && <div className="th-chip">+{youngPeople.length - 3} more</div>}
-          </div>
-        </div>
-
-        {/* AI Prep card — shows next YP */}
-        {youngPeople[0] && (() => {
-          const yp = youngPeople[0]
-          const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-          const stage = ypSessions[0]?.focus_step || 'Early'
-          return (
-            <div className="prep-card" onClick={() => { onSelectYP(yp); onNav('prep') }}>
-              <div className="pc-eye"><PulseDot /> Tend Intelligence</div>
-              <div className="pc-title">Prepare for your next session with {yp.name}</div>
-              <div className="pc-insight">Currently in {stage} stage · {ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} logged. Tap to generate your AI session prep.</div>
-              <button className="pc-btn">View session prep →</button>
-            </div>
-          )
-        })()}
-
-        {/* Safeguarding alert */}
-        {openSG > 0 && (
-          <div className="alert">
-            <div className="alert-dot">⚑</div>
-            <div>
-              <div className="alert-title">Safeguarding concerns</div>
-              <div className="alert-body">{openSG} session{openSG !== 1 ? 's' : ''} with safeguarding notes. Review before your next sessions.</div>
-            </div>
-          </div>
-        )}
-
-        {/* Disengagement alert */}
-        {disengaged && (
-          <div className="alert" style={{ background:'#FDF3E3', border:'1px solid #F0C88A' }}>
-            <div className="alert-dot" style={{ background:'rgba(232,164,74,0.15)' }}>⏰</div>
-            <div>
-              <div className="alert-title" style={{ color:'#7A5020' }}>Check in with {disengaged.name}</div>
-              <div className="alert-body" style={{ color:'#A07030' }}>No session in over 10 days. An early check-in could help maintain engagement.</div>
-            </div>
-          </div>
-        )}
-
-        <div className="sec">Your caseload</div>
         {youngPeople.length === 0 && (
-          <Card>
-            <div style={{ textAlign:'center', padding:'20px 0' }}>
-              <div style={{ fontSize:32, marginBottom:8 }}>👋</div>
-              <div style={{ fontSize:14, fontWeight:500, color:T.dark, marginBottom:6 }}>Add your first young person</div>
-              <div style={{ fontSize:12, color:T.muted }}>Go to People to get started</div>
-            </div>
-          </Card>
+          <EmptyState onAdd={() => onNav('add-yp')} />
         )}
-        {youngPeople.map(yp => {
-          const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-          const stage = ypSessions[0]?.focus_step || 'Early'
-          return (
-            <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
-              <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
-              <div className="yp-info">
-                <div className="yp-name">{yp.name}</div>
-                <div className="yp-meta">{ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} · {ypSessions[0]?.date || 'No sessions yet'}</div>
-              </div>
-              <StageBadge stage={stage} />
-            </div>
-          )
-        })}
 
-        <div className="sec">Quick actions</div>
-        <div className="qgrid">
-          <div className="qbtn" onClick={() => onNav('log')}>
-            <div className="qi" style={{ background:T.pale }}>📋</div>
-            <div className="qt">Log Session</div>
-            <div className="qs">After a session</div>
-          </div>
-          <div className="qbtn" onClick={() => onNav('add-yp')}>
-            <div className="qi" style={{ background:T.amberPale }}>＋</div>
-            <div className="qt">Add Person</div>
-            <div className="qs">New to caseload</div>
-          </div>
-          <div className="qbtn" onClick={() => onNav('report')}>
-            <div className="qi" style={{ background:'#F0EEFF' }}>◎</div>
-            <div className="qt">Impact Report</div>
-            <div className="qs">AI generated</div>
-          </div>
-          <div className="qbtn" onClick={() => onNav('sessions')}>
-            <div className="qi" style={{ background:T.rosePale }}>📅</div>
-            <div className="qt">Sessions</div>
-            <div className="qs">View all logs</div>
-          </div>
-        </div>
+        {youngPeople.length > 0 && (
+          <>
+            <div className="today-hero">
+              <div>
+                <div className="th-count">{youngPeople.length}</div>
+                <div className="th-label">in your caseload</div>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
+                {youngPeople.slice(0,3).map(yp => (
+                  <div key={yp.id} className="th-chip">{yp.name}</div>
+                ))}
+                {youngPeople.length > 3 && <div className="th-chip">+{youngPeople.length - 3} more</div>}
+              </div>
+            </div>
+
+            {youngPeople[0] && (() => {
+              const yp = youngPeople[0]
+              const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
+              const stage = ypSessions[0]?.focus_step || 'Early'
+              return (
+                <div className="prep-card" onClick={() => { onSelectYP(yp); onNav('prep') }}>
+                  <div className="pc-eye"><PulseDot /> Tend Intelligence</div>
+                  <div className="pc-title">Prepare for your next session with {yp.name}</div>
+                  <div className="pc-insight">Currently in {stage} stage · {ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} logged. Tap to generate your AI session prep.</div>
+                  <button className="pc-btn">View session prep →</button>
+                </div>
+              )
+            })()}
+
+            {openSG > 0 && (
+              <div className="alert">
+                <div className="alert-dot">⚑</div>
+                <div>
+                  <div className="alert-title">Safeguarding concerns</div>
+                  <div className="alert-body">{openSG} session{openSG !== 1 ? 's' : ''} with safeguarding notes. Review before your next sessions.</div>
+                </div>
+              </div>
+            )}
+
+            {disengaged && (
+              <div className="alert" style={{ background:'#FDF3E3', border:'1px solid #F0C88A' }}>
+                <div className="alert-dot" style={{ background:'rgba(232,164,74,0.15)' }}>⏰</div>
+                <div>
+                  <div className="alert-title" style={{ color:'#7A5020' }}>Check in with {disengaged.name}</div>
+                  <div className="alert-body" style={{ color:'#A07030' }}>No session in over 10 days. An early check-in could help maintain engagement.</div>
+                </div>
+              </div>
+            )}
+
+            <div className="sec">Your caseload</div>
+            {youngPeople.map(yp => {
+              const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
+              const stage = ypSessions[0]?.focus_step || 'Early'
+              return (
+                <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
+                  <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
+                  <div className="yp-info">
+                    <div className="yp-name">{yp.name}</div>
+                    <div className="yp-meta">{ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} · {ypSessions[0]?.date || 'No sessions yet'}</div>
+                  </div>
+                  <StageBadge stage={stage} />
+                </div>
+              )
+            })}
+
+            <div className="sec">Quick actions</div>
+            <div className="qgrid">
+              <div className="qbtn" onClick={() => onNav('log')}>
+                <div className="qi" style={{ background:T.pale }}>📋</div>
+                <div className="qt">Log Session</div>
+                <div className="qs">After a session</div>
+              </div>
+              <div className="qbtn" onClick={() => onNav('add-yp')}>
+                <div className="qi" style={{ background:T.amberPale }}>＋</div>
+                <div className="qt">Add Person</div>
+                <div className="qs">New to caseload</div>
+              </div>
+              <div className="qbtn" onClick={() => onNav('report')}>
+                <div className="qi" style={{ background:'#F0EEFF' }}>◎</div>
+                <div className="qt">Impact Report</div>
+                <div className="qs">AI generated</div>
+              </div>
+              <div className="qbtn" onClick={() => onNav('sessions')}>
+                <div className="qi" style={{ background:T.rosePale }}>📅</div>
+                <div className="qt">Sessions</div>
+                <div className="qs">View all logs</div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
       <BottomNav active="home" onNav={onNav} />
     </div>
@@ -252,29 +406,38 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor }) {
       </div>
       <div className="body-start" />
       <div className="scroll">
-        {disengaged && (
-          <div className="ai-insight">
-            <AITag />
-            <div className="ai-text">{disengaged.name} hasn't had a session in {Math.floor((Date.now() - new Date(sessions.filter(s => s.young_person_id === disengaged.id)[0]?.date)) / 86400000)} days. Based on their pattern, an early check-in could help maintain momentum and prevent disengagement.</div>
-          </div>
+
+        {youngPeople.length === 0 && (
+          <EmptyState onAdd={() => onNav('add-yp')} />
         )}
 
-        {youngPeople.map(yp => {
-          const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
-          const stage = ypSessions[0]?.focus_step || 'Early'
-          const hasSG = ypSessions.some(s => s.safeguarding_concern?.trim())
-          return (
-            <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
-              <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
-              <div className="yp-info">
-                <div className="yp-name">{yp.name}</div>
-                <div className="yp-meta">{ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} · {hasSG ? '⚑ Flag active' : `Last: ${ypSessions[0]?.date || 'No sessions'}`}</div>
+        {youngPeople.length > 0 && (
+          <>
+            {disengaged && (
+              <div className="ai-insight">
+                <AITag />
+                <div className="ai-text">{disengaged.name} hasn't had a session in {Math.floor((Date.now() - new Date(sessions.filter(s => s.young_person_id === disengaged.id)[0]?.date)) / 86400000)} days. Based on their pattern, an early check-in could help maintain momentum and prevent disengagement.</div>
               </div>
-              <StageBadge stage={stage} />
-            </div>
-          )
-        })}
-        <button className="btn-s" style={{ marginTop:8 }} onClick={() => onNav('add-yp')}>+ Add young person</button>
+            )}
+
+            {youngPeople.map(yp => {
+              const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
+              const stage = ypSessions[0]?.focus_step || 'Early'
+              const hasSG = ypSessions.some(s => s.safeguarding_concern?.trim())
+              return (
+                <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
+                  <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
+                  <div className="yp-info">
+                    <div className="yp-name">{yp.name}</div>
+                    <div className="yp-meta">{ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} · {hasSG ? '⚑ Flag active' : `Last: ${ypSessions[0]?.date || 'No sessions'}`}</div>
+                  </div>
+                  <StageBadge stage={stage} />
+                </div>
+              )
+            })}
+            <button className="btn-s" style={{ marginTop:8 }} onClick={() => onNav('add-yp')}>+ Add young person</button>
+          </>
+        )}
       </div>
       <BottomNav active="people" onNav={onNav} />
     </div>
@@ -336,7 +499,7 @@ function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession }) {
 }
 
 // ── SCREEN: YOUNG PERSON PROFILE ──
-function ProfileScreen({ yp, sessions, onNav, onBack }) {
+function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt }) {
   const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
   const stage = ypSessions[0]?.focus_step || 'Early'
   const totalSessions = ypSessions.length
@@ -362,6 +525,18 @@ function ProfileScreen({ yp, sessions, onNav, onBack }) {
       </div>
       <div className="body-start" />
       <div className="scroll">
+
+        {showPrepPrompt && (
+          <div style={{ background:'linear-gradient(135deg,#4A7C59 0%,#2D4A3E 100%)', borderRadius:18, padding:18, marginBottom:10, cursor:'pointer', transition:'transform 0.2s' }} onClick={() => onNav('prep')}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+              <PulseDot />
+              <span style={{ fontSize:9, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.55)' }}>Tend Intelligence</span>
+            </div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:300, color:'white', lineHeight:1.35, marginBottom:10 }}>Run AI session prep before your first session →</div>
+            <div style={{ fontSize:12, fontWeight:300, color:'rgba(255,255,255,0.6)' }}>Generate personalised insight, spark questions, and guidance.</div>
+          </div>
+        )}
+
         <Card>
           <div className="card-label">Journey</div>
           <Pathway currentStage={stage} />
@@ -420,7 +595,8 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
             youngPersonName: yp.name,
             stage,
             sessions: ypSessions.slice(0, 5).map(s => ({ date: s.date, notes: s.notes, indicators: s.indicators })),
-            orgName: mentor?.organisations?.name
+            orgName: mentor?.organisations?.name,
+            workContext: mentor?.work_context
           })
         })
         const data = await res.json()
@@ -581,7 +757,6 @@ function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
       </div>
       <div className="body-start" />
       <div className="scroll">
-        {/* Arrival check-in */}
         <Card>
           <div className="cq">"How did {yp.name} show up today?"</div>
           <div className="emoji-row">
@@ -594,7 +769,6 @@ function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
           </div>
         </Card>
 
-        {/* Focus step */}
         <Card>
           <div className="inp-label">Pathway stage for this session</div>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -604,7 +778,6 @@ function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
           </div>
         </Card>
 
-        {/* Notes */}
         <Card>
           <div className="inp-label">Session notes</div>
           <textarea className="inp" rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder={`Write freely — what happened in the room today? Tend will help structure this...`} />
@@ -621,7 +794,6 @@ function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
           )}
         </Card>
 
-        {/* Indicators */}
         <Card>
           <div className="card-label">Update indicators</div>
           {INDICATORS.map(ind => (
@@ -636,7 +808,6 @@ function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
           ))}
         </Card>
 
-        {/* Safeguarding */}
         <Card>
           <div className="inp-label">Safeguarding</div>
           {!showSG ? (
@@ -669,12 +840,13 @@ function AddYPScreen({ orgId, onDone, onBack }) {
   const save = async () => {
     if (!form.name.trim()) return
     setSaving(true)
-    await fetch('/api/young-people', {
+    const res = await fetch('/api/young-people', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ ...form, org_id: orgId })
     })
+    const data = await res.json()
     setSaving(false)
-    onDone()
+    onDone(data)
   }
 
   return (
@@ -732,7 +904,6 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
   const totalSessions = sessions.length
   const uniqueYP = [...new Set(sessions.map(s => s.young_person_id))].length
 
-  // Pathway distribution
   const stageDist = {}
   STEPS.forEach(s => stageDist[s] = 0)
   youngPeople.forEach(yp => {
@@ -829,7 +1000,7 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
   )
 }
 
-// ── SCREEN: INSIGHTS (simple analytics) ──
+// ── SCREEN: INSIGHTS ──
 function InsightsScreen({ sessions, youngPeople, onNav }) {
   const totalSessions = sessions.length
   const last30 = sessions.filter(s => {
@@ -897,6 +1068,154 @@ function InsightsScreen({ sessions, youngPeople, onNav }) {
   )
 }
 
+
+// ── SCREEN: SETTINGS ──
+function SettingsScreen({ mentor, onBack, onUpdateMentor, onSignOut }) {
+  const [name, setName] = useState(mentor?.name || '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const [team, setTeam] = useState([])
+  const [loadingTeam, setLoadingTeam] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteSent, setInviteSent] = useState(false)
+  const [inviteError, setInviteError] = useState('')
+
+  const isAdmin = mentor?.role === 'admin'
+
+  useEffect(() => {
+    if (isAdmin && mentor?.org_id) {
+      setLoadingTeam(true)
+      fetch(`/api/mentors?orgId=${mentor.org_id}`)
+        .then(r => r.json())
+        .then(data => { if (Array.isArray(data)) setTeam(data) })
+        .catch(() => {})
+        .finally(() => setLoadingTeam(false))
+    }
+  }, [isAdmin, mentor?.org_id])
+
+  const saveProfile = async () => {
+    if (!name.trim()) return
+    setSaving(true); setSaved(false)
+    try {
+      const res = await fetch('/api/mentors', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: mentor.id, name: name.trim() })
+      })
+      const data = await res.json()
+      if (data && !data.error) {
+        onUpdateMentor(data)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      }
+    } catch(e) {}
+    setSaving(false)
+  }
+
+  const sendInvite = async () => {
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) return
+    setInviting(true); setInviteError(''); setInviteSent(false)
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          orgId: mentor.org_id,
+          orgName: mentor?.organisations?.name,
+          invitedBy: mentor.name,
+        })
+      })
+      const data = await res.json()
+      if (data.error) { setInviteError(data.error) }
+      else { setInviteSent(true); setInviteEmail('') }
+    } catch(e) {
+      setInviteError('Failed to send invite')
+    }
+    setInviting(false)
+  }
+
+  const handleSignOut = async () => {
+    try {
+      const { getSupabase } = await import('@/lib/supabase')
+      const sb = getSupabase()
+      await sb.auth.signOut()
+    } catch(e) {}
+    onSignOut()
+  }
+
+  return (
+    <div className="screen active slide-in">
+      <button className="back" onClick={onBack}>← Back</button>
+      <div className="sh">
+        <div className="sh-eye">Settings</div>
+        <div className="sh-title">Your <em>account</em></div>
+      </div>
+      <div className="body-start" />
+      <div className="scroll">
+
+        <Card>
+          <div className="card-label">Profile</div>
+          <div className="inp-label">Name</div>
+          <input className="inp" type="text" value={name} onChange={e => setName(e.target.value)} />
+          <div className="inp-label">Email</div>
+          <input className="inp" type="email" value={mentor?.email || ''} readOnly style={{ opacity:0.5, cursor:'not-allowed' }} />
+          <div className="inp-label">Organisation</div>
+          <input className="inp" type="text" value={mentor?.organisations?.name || ''} readOnly style={{ opacity:0.5, cursor:'not-allowed' }} />
+          <div className="inp-label">Role</div>
+          <input className="inp" type="text" value={mentor?.role === 'admin' ? 'Admin' : 'Mentor'} readOnly style={{ opacity:0.5, cursor:'not-allowed' }} />
+          <button className="btn-p" onClick={saveProfile} disabled={saving || !name.trim()} style={{ opacity: saving || !name.trim() ? 0.5 : 1 }}>
+            {saving ? 'Saving...' : saved ? '✓ Saved' : 'Update profile'}
+          </button>
+        </Card>
+
+        {isAdmin && (
+          <>
+            <Card>
+              <div className="card-label">Invite a mentor</div>
+              <div style={{ fontSize:12, color:T.muted, fontWeight:300, marginBottom:12, lineHeight:1.5 }}>Send an email invitation to a colleague. They'll be able to sign up and join your organisation on Tend.</div>
+              <div className="inp-label">Email address</div>
+              <input className="inp" type="email" placeholder="colleague@example.com" value={inviteEmail} onChange={e => { setInviteEmail(e.target.value); setInviteSent(false); setInviteError('') }} />
+              {inviteError && <div style={{ fontSize:12, color:T.rose, marginBottom:8 }}>{inviteError}</div>}
+              {inviteSent && <div style={{ fontSize:12, color:T.sage, marginBottom:8, padding:'8px 12px', background:T.pale, borderRadius:8, border:`1px solid ${T.mist}` }}>✓ Invitation sent</div>}
+              <button className="btn-p" onClick={sendInvite} disabled={inviting || !inviteEmail.includes('@')} style={{ opacity: inviting || !inviteEmail.includes('@') ? 0.5 : 1 }}>
+                {inviting ? 'Sending...' : 'Send invitation →'}
+              </button>
+            </Card>
+
+            <Card>
+              <div className="card-label">Your team</div>
+              {loadingTeam && <div style={{ padding:'12px 0' }}><Spinner /></div>}
+              {!loadingTeam && team.length === 0 && (
+                <div style={{ fontSize:13, color:T.muted, padding:'8px 0' }}>No team members yet</div>
+              )}
+              {team.map(m => (
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:`1px solid ${T.border}` }}>
+                  <div style={{ width:36, height:36, borderRadius:'50%', background:T.pale, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Fraunces',serif", fontSize:15, fontWeight:300, color:T.sage, flexShrink:0 }}>
+                    {m.name?.[0] || '?'}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:T.dark }}>{m.name}{m.id === mentor.id ? ' (you)' : ''}</div>
+                    <div style={{ fontSize:11, color:T.muted, fontWeight:300 }}>{m.email}</div>
+                  </div>
+                  <span className="badge" style={{ background: m.role === 'admin' ? T.amberPale : T.pale, color: m.role === 'admin' ? '#B07820' : T.sage }}>{m.role}</span>
+                </div>
+              ))}
+            </Card>
+          </>
+        )}
+
+        <button onClick={handleSignOut} style={{ width:'100%', background:'transparent', border:`1.5px solid ${T.border}`, borderRadius:14, padding:14, fontSize:13, fontWeight:400, color:T.rose, fontFamily:"'Outfit',sans-serif", cursor:'pointer', letterSpacing:'0.04em', marginTop:8, marginBottom:40 }}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
 // ── MAIN DASHBOARD ──
 export default function Dashboard() {
   const [mentor, setMentor] = useState(null)
@@ -906,13 +1225,16 @@ export default function Dashboard() {
   const [screen, setScreen] = useState('home')
   const [selectedYP, setSelectedYP] = useState(null)
   const [selectedSession, setSelectedSession] = useState(null)
+  const [onboardingDone, setOnboardingDone] = useState(false)
+  const [showPrepPrompt, setShowPrepPrompt] = useState(false)
 
-  const orgId = '00000000-0000-0000-0000-000000000001'
+  const orgId = mentor?.org_id || '00000000-0000-0000-0000-000000000001'
 
-  const refreshData = async () => {
+  const refreshData = async (useOrgId) => {
+    const oid = useOrgId || orgId
     const [ypRes, sessRes] = await Promise.all([
-      fetch('/api/young-people?orgId=all'),
-      fetch('/api/sessions?orgId=all'),
+      fetch(`/api/young-people?orgId=${oid}`),
+      fetch(`/api/sessions?orgId=${oid}`),
     ])
     setYP(await ypRes.json())
     setSessions(await sessRes.json())
@@ -921,55 +1243,61 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Dynamically import supabase to avoid SSR issues
         const { getSupabase } = await import('@/lib/supabase')
         const sb = getSupabase()
         const { data: { user } } = await sb.auth.getUser()
 
         if (user) {
-          // Authenticated — load real data
           const mentorRes = await fetch(`/api/auth?userId=${user.id}&email=${encodeURIComponent(user.email)}`)
           const mentorData = await mentorRes.json()
 
-          if (mentorData) {
+          if (mentorData && mentorData.org_id) {
             setMentor(mentorData)
             const [ypRes, sessRes] = await Promise.all([
               fetch(`/api/young-people?orgId=${mentorData.org_id}`),
               fetch(`/api/sessions?orgId=${mentorData.org_id}`),
             ])
-            setYP(await ypRes.json())
-            setSessions(await sessRes.json())
+            const ypData = await ypRes.json()
+            const sessData = await sessRes.json()
+            setYP(ypData)
+            setSessions(sessData)
+
+            if (ypData.length === 0 && !mentorData.work_context) {
+              setOnboardingDone(false)
+            } else {
+              setOnboardingDone(true)
+            }
           } else {
-            // No profile yet — show empty state
-            setMentor({ name: user.email, id: user.id, org_id: null, role: 'admin', organisations: { name: 'Your Organisation' } })
+            setMentor({ name: user.email, id: user.id, email: user.email, org_id: null, role: 'admin', organisations: { name: 'Your Organisation' } })
+            setOnboardingDone(true)
           }
         } else {
-          // Not authenticated — load demo data
           const [ypRes, sessRes] = await Promise.all([
             fetch('/api/young-people?orgId=all'),
             fetch('/api/sessions?orgId=all'),
           ])
-          setMentor({ name: 'Jordan', id: 'demo', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
+          setMentor({ name: 'Jordan', id: 'demo', email: 'demo@tend.app', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
           setYP(await ypRes.json())
           setSessions(await sessRes.json())
+          setOnboardingDone(true)
         }
       } catch(e) {
         console.error('Load error:', e)
-        // Fallback to demo
         const [ypRes, sessRes] = await Promise.all([
           fetch('/api/young-people?orgId=all'),
           fetch('/api/sessions?orgId=all'),
         ])
-        setMentor({ name: 'Jordan', id: 'demo', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
+        setMentor({ name: 'Jordan', id: 'demo', email: 'demo@tend.app', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
         setYP(await ypRes.json())
         setSessions(await sessRes.json())
+        setOnboardingDone(true)
       }
       setLoading(false)
     }
     init()
   }, [])
 
-  const nav = (s) => setScreen(s)
+  const nav = (s) => { setShowPrepPrompt(false); setScreen(s) }
 
   const onSelectYP = (yp) => setSelectedYP(yp)
 
@@ -978,9 +1306,38 @@ export default function Dashboard() {
     setScreen('home')
   }
 
-  const onDoneAddYP = async () => {
+  const onDoneAddYP = async (newYP) => {
     await refreshData()
-    setScreen('people')
+    if (newYP && newYP.id) {
+      setSelectedYP(newYP)
+      setShowPrepPrompt(true)
+      setScreen('profile')
+    } else {
+      setScreen('people')
+    }
+  }
+
+  const onOnboardingAddYPDone = async (newYP) => {
+    await refreshData()
+    if (newYP && newYP.id) {
+      setSelectedYP(newYP)
+      setShowPrepPrompt(true)
+    }
+    setOnboardingDone(true)
+    setScreen(newYP?.id ? 'profile' : 'home')
+  }
+
+  const onOnboardingSkip = () => {
+    setOnboardingDone(true)
+    setScreen('home')
+  }
+
+  const onUpdateMentor = (updated) => {
+    setMentor(updated)
+  }
+
+  const onSignOut = () => {
+    window.location.href = '/'
   }
 
   if (loading) return (
@@ -990,6 +1347,67 @@ export default function Dashboard() {
       <div style={{ marginTop:24 }}><Spinner /></div>
     </div>
   )
+
+  // ── ONBOARDING FLOW (no bottom nav) ──
+  if (!onboardingDone && mentor?.org_id) {
+    if (screen === 'onboard-work') {
+      return (
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,300;0,9..144,400;1,9..144,200;1,9..144,300;1,9..144,400&display=swap');
+            *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+            body{background:#F4F7F4;font-family:'Outfit',sans-serif;color:#1C2C22}
+            input,textarea,select,button{font-family:'Outfit',sans-serif}
+            .screen{display:flex;flex-direction:column;min-height:100vh}
+            .slide-in{animation:slideIn 0.26s ease}
+            @keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+            .inp-label{font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#8FAA96;margin-bottom:7px}
+            textarea.inp,input.inp{width:100%;background:#F4F7F4;border:1px solid #DDE8DF;border-radius:12px;padding:12px 14px;font-size:13px;color:#1C2C22;font-family:'Outfit',sans-serif;font-weight:300;margin-bottom:10px;outline:none;resize:none;line-height:1.5;box-sizing:border-box}
+            textarea.inp:focus,input.inp:focus{border-color:#C5DECA}
+            textarea.inp::placeholder,input.inp::placeholder{color:#8FAA96}
+            .btn-p{width:100%;background:#4A7C59;color:white;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:500;font-family:'Outfit',sans-serif;cursor:pointer;letter-spacing:0.03em;transition:all 0.2s;margin-top:4px;display:block}
+            .btn-p:active{background:#2D4A3E}
+          `}</style>
+          <OnboardingWorkContext mentor={mentor} onNext={() => setScreen('onboard-addyp')} onUpdateMentor={onUpdateMentor} />
+        </>
+      )
+    }
+
+    if (screen === 'onboard-addyp') {
+      return (
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,300;0,9..144,400;1,9..144,200;1,9..144,300;1,9..144,400&display=swap');
+            *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+            body{background:#F4F7F4;font-family:'Outfit',sans-serif;color:#1C2C22}
+            input,textarea,select,button{font-family:'Outfit',sans-serif}
+            .screen{display:flex;flex-direction:column;min-height:100vh}
+            .slide-in{animation:slideIn 0.26s ease}
+            @keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+            .inp-label{font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#8FAA96;margin-bottom:7px}
+            textarea.inp,input.inp{width:100%;background:#F4F7F4;border:1px solid #DDE8DF;border-radius:12px;padding:12px 14px;font-size:13px;color:#1C2C22;font-family:'Outfit',sans-serif;font-weight:300;margin-bottom:10px;outline:none;resize:none;line-height:1.5;box-sizing:border-box}
+            textarea.inp:focus,input.inp:focus{border-color:#C5DECA}
+            textarea.inp::placeholder,input.inp::placeholder{color:#8FAA96}
+            .btn-p{width:100%;background:#4A7C59;color:white;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:500;font-family:'Outfit',sans-serif;cursor:pointer;letter-spacing:0.03em;transition:all 0.2s;margin-top:4px;display:block}
+            .btn-p:active{background:#2D4A3E}
+          `}</style>
+          <OnboardingAddYP orgId={orgId} onDone={onOnboardingAddYPDone} onSkip={onOnboardingSkip} />
+        </>
+      )
+    }
+
+    return (
+      <>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,300;0,9..144,400;1,9..144,200;1,9..144,300;1,9..144,400&display=swap');
+          *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+          body{background:#1C2C22;font-family:'Outfit',sans-serif;color:#1C2C22}
+          .screen{display:flex;flex-direction:column;min-height:100vh}
+        `}</style>
+        <OnboardingWelcome mentor={mentor} onNext={() => setScreen('onboard-work')} />
+      </>
+    )
+  }
 
   const logYP = selectedYP || youngPeople[0]
 
@@ -1018,7 +1436,7 @@ export default function Dashboard() {
         .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px 0}
         .ni-label{font-size:9px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:#8FAA96}
         .ni.active .ni-label{color:#4A7C59}
-        .greeting{padding:20px 18px 4px;background:#fff}
+        .greeting{padding:20px 18px 4px;background:#fff;position:relative}
         .g-time{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#8FAA96;margin-bottom:3px}
         .g-name{font-family:'Fraunces',serif;font-size:30px;font-weight:300;color:#1C2C22;margin-bottom:2px}
         .g-sub{font-size:13px;color:#8FAA96;margin-bottom:18px;font-weight:300}
@@ -1052,7 +1470,6 @@ export default function Dashboard() {
         .b-reset{background:#F0EEFF;color:#7060C0}
         .b-release{background:#E8F4FF;color:#3080C0}
         .b-rise{background:#FAEAEA;color:#C97070}
-        /* stage aliases */
         .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
         .qbtn{background:#fff;border:1px solid #DDE8DF;border-radius:16px;padding:16px 14px;cursor:pointer;transition:all 0.15s;text-align:left}
         .qbtn:active{background:#EAF2EC;transform:scale(0.97)}
@@ -1117,15 +1534,26 @@ export default function Dashboard() {
         .card-label{font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#8FAA96;margin-bottom:12px}
       `}</style>
 
-      {screen === 'home' && <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} />}
+      {screen === 'home' && (
+        <div style={{ position:'relative' }}>
+          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} />
+          <div onClick={() => nav('settings')} style={{ position:'fixed', top:22, right:18, cursor:'pointer', padding:8, borderRadius:'50%', zIndex:50, background:'rgba(255,255,255,0.8)', backdropFilter:'blur(8px)' }}>
+            <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+              <circle cx="11" cy="11" r="3" stroke={T.muted} strokeWidth="1.7"/>
+              <path d="M11 1.5V4M11 18V20.5M1.5 11H4M18 11H20.5M3.8 3.8L5.6 5.6M16.4 16.4L18.2 18.2M18.2 3.8L16.4 5.6M5.6 16.4L3.8 18.2" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+        </div>
+      )}
       {screen === 'people' && <PeopleScreen youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} mentor={mentor} />}
       {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} />}
       {screen === 'insights' && <InsightsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} />}
-      {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} />}
+      {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} />}
       {screen === 'prep' && <PrepScreen yp={selectedYP || youngPeople[0]} sessions={sessions} mentor={mentor} onNav={nav} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} />}
       {screen === 'log' && <LogScreen yp={logYP} sessions={sessions} mentor={mentor} orgId={orgId} onDone={onDoneLog} onBack={() => setScreen('home')} />}
       {screen === 'add-yp' && <AddYPScreen orgId={orgId} onDone={onDoneAddYP} onBack={() => setScreen('people')} />}
       {screen === 'report' && <ReportScreen sessions={sessions} youngPeople={youngPeople} mentor={mentor} onBack={() => setScreen('home')} />}
+      {screen === 'settings' && <SettingsScreen mentor={mentor} onBack={() => setScreen('home')} onUpdateMentor={onUpdateMentor} onSignOut={onSignOut} />}
     </>
   )
 }
