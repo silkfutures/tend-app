@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({ email:'', password:'', name:'', orgName:'' })
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -107,9 +108,14 @@ export default function LoginPage() {
                 onChange={e => set('email', e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()} />
               <label style={S.label}>Password</label>
-              <input style={S.input} type="password" placeholder="••••••••" value={form.password}
-                onChange={e => set('password', e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+              <div style={{ position:'relative', marginBottom:'14px' }}>
+                <input style={{ ...S.input, marginBottom:0, paddingRight:'44px' }} type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={form.password}
+                  onChange={e => set('password', e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+                <button onClick={() => setShowPassword(p => !p)} type="button" style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.4)', fontSize:'13px', padding:0, fontFamily:"'Outfit',sans-serif" }}>
+                  {showPassword ? 'hide' : 'show'}
+                </button>
+              </div>
               <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleLogin} disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign in →'}
               </button>
@@ -127,8 +133,13 @@ export default function LoginPage() {
               <input style={S.input} type="email" placeholder="you@organisation.com" value={form.email}
                 onChange={e => set('email', e.target.value)} />
               <label style={S.label}>Password</label>
-              <input style={S.input} type="password" placeholder="Min. 8 characters" value={form.password}
-                onChange={e => set('password', e.target.value)} />
+              <div style={{ position:'relative', marginBottom:'14px' }}>
+                <input style={{ ...S.input, marginBottom:0, paddingRight:'44px' }} type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters" value={form.password}
+                  onChange={e => set('password', e.target.value)} />
+                <button onClick={() => setShowPassword(p => !p)} type="button" style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.4)', fontSize:'13px', padding:0, fontFamily:"'Outfit',sans-serif" }}>
+                  {showPassword ? 'hide' : 'show'}
+                </button>
+              </div>
               {!success && (
                 <button style={{ ...S.btn, opacity: loading ? 0.6 : 1 }} onClick={handleSignup} disabled={loading}>
                   {loading ? 'Creating account...' : 'Create account →'}

@@ -14,7 +14,7 @@ export async function POST(req) {
       type: 'signup',
       email,
       options: {
-        redirectTo: `https://tend-app-murex.vercel.app/dashboard`
+        redirectTo: 'https://tend-app-murex.vercel.app/dashboard'
       }
     })
 
