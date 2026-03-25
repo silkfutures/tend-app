@@ -1,11 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-// Rate limiting: store IP -> {count, resetTime}
 const rateLimitMap = new Map();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 20; // 20 requests per minute
+const RATE_LIMIT_WINDOW = 60 * 1000;
+const RATE_LIMIT_MAX = 20;
 
-// System prompt with full Tend knowledge base
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 const TEND_SYSTEM_PROMPT = `You are a warm, knowledgeable support assistant for Tend, a SaaS mentoring intelligence platform.
 
 ABOUT TEND:
@@ -76,21 +80,9 @@ TONE & APPROACH:
 function checkRateLimit(ip) {
   const now = Date.now();
   const limit = rateLimitMap.get(ip);
-
-  if (limit && now > limit.resetTime) {
-    rateLimitMap.delete(ip);
-    return { allowed: true, remaining: RATE_LIMIT_MAX };
-  }
-
-  if (!limit) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return { allowed: true, remaining: RATE_LIMIT_MAX - 1 };
-  }
-
-  if (limit.count >= RATE_LIMIT_MAX) {
-    return { allowed: false, remaining: 0 };
-  }
-
+  if (limit && now > limit.resetTime) { rateLimitMap.delete(ip); return { allowed: true, remaining: RATE_LIMIT_MAX }; }
+  if (!limit) { rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW }); return { allowed: true, remaining: RATE_LIMIT_MAX - 1 }; }
+  if (limit.count >= RATE_LIMIT_MAX) { return { allowed: false, remaining: 0 }; }
   limit.count++;
   return { allowed: true, remaining: RATE_LIMIT_MAX - limit.count };
 }
@@ -109,45 +101,30 @@ export async function POST(request) {
     if (!rateLimitResult.allowed) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
-        { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } }
+        { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...CORS_HEADERS } }
       );
     }
 
     let body;
-    try {
-      body = await request.json();
-    } catch (e) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    try { body = await request.json(); } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
     const { messages } = body;
-
     if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Messages array is required and must not be empty' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Messages array is required and must not be empty' }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
     for (const msg of messages) {
       if (!msg.role || !msg.content) {
-        return new Response(
-          JSON.stringify({ error: 'Each message must have role and content' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Each message must have role and content' }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
       }
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       console.error('ANTHROPIC_API_KEY not set');
-      return new Response(
-        JSON.stringify({ error: 'API configuration error' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'API configuration error' }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
     const client = new Anthropic({ apiKey });
@@ -160,10 +137,7 @@ export async function POST(request) {
     });
 
     if (!response.content || response.content.length === 0 || response.content[0].type !== 'text') {
-      return new Response(
-        JSON.stringify({ error: 'No response from AI' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'No response from AI' }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
     return new Response(
@@ -171,45 +145,20 @@ export async function POST(request) {
         message: response.content[0].text,
         usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens },
       }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
-        },
-      }
+      { status: 200, headers: { 'Content-Type': 'application/json', 'X-RateLimit-Remaining': rateLimitResult.remaining.toString(), ...CORS_HEADERS } }
     );
   } catch (error) {
     console.error('Chatbot API error:', error);
-
     if (error.status === 401) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication error with AI service' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Authentication error with AI service' }), { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
-
     if (error.status === 429) {
-      return new Response(
-        JSON.stringify({ error: 'AI service rate limit exceeded. Please try again later.' }),
-        { status: 429, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'AI service rate limit exceeded. Please try again later.' }), { status: 429, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
-
-    return new Response(
-      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Something went wrong. Please try again.' }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 }
 
 export async function OPTIONS() {
-  return new Response(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
+  return new Response(null, { status: 200, headers: CORS_HEADERS });
 }

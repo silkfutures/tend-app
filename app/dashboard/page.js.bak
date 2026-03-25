@@ -311,7 +311,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               </div>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
                 {youngPeople.slice(0,3).map(yp => (
-                  <div key={yp.id} className="th-chip">{privacy(yp.name)}</div>
+                  <div key={yp.id} className="th-chip">{yp.name}</div>
                 ))}
                 {youngPeople.length > 3 && <div className="th-chip">+{youngPeople.length - 3} more</div>}
               </div>
@@ -324,7 +324,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               return (
                 <div className="prep-card" onClick={() => { onSelectYP(yp); onNav('prep') }}>
                   <div className="pc-eye"><PulseDot /> Tend Intelligence</div>
-                  <div className="pc-title">Prepare for your next session with {privacy(yp.name)}</div>
+                  <div className="pc-title">Prepare for your next session with {yp.name}</div>
                   <div className="pc-insight">Currently in {stage} stage · {ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} logged. Tap to generate your AI session prep.</div>
                   <button className="pc-btn">View session prep →</button>
                 </div>
@@ -359,7 +359,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
                 <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
                   <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
                   <div className="yp-info">
-                    <div className="yp-name">{privacy(yp.name)}</div>
+                    <div className="yp-name">{yp.name}</div>
                     <div className="yp-meta">{ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} · {ypSessions[0]?.date || 'No sessions yet'}</div>
                   </div>
                   <StageBadge stage={stage} />
@@ -436,7 +436,7 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor }) {
                 <div key={yp.id} className="yp" onClick={() => { onSelectYP(yp); onNav('profile') }}>
                   <div className="yp-av" style={{ background: STEP_BG[stage], color: STEP_COLORS[stage] }}>{yp.name[0]}</div>
                   <div className="yp-info">
-                    <div className="yp-name">{privacy(yp.name)}</div>
+                    <div className="yp-name">{yp.name}</div>
                     <div className="yp-meta">{ypSessions.length} session{ypSessions.length !== 1 ? 's' : ''} · {hasSG ? '⚑ Flag active' : `Last: ${ypSessions[0]?.date || 'No sessions'}`}</div>
                   </div>
                   <StageBadge stage={stage} />
@@ -523,7 +523,7 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt }) {
       <button className="back" onClick={onBack}>← Back</button>
       <div className="ph">
         <div className="ph-av">{yp.name[0]}</div>
-        <div className="ph-name">{privacy(yp.name)}</div>
+        <div className="ph-name">{yp.name}</div>
         <div className="ph-meta">{yp.postcode || 'No area set'} · {totalSessions} session{totalSessions !== 1 ? 's' : ''}</div>
         <div className="ph-stats">
           <div><div className="ps-num">{totalSessions}</div><div className="ps-lbl">Sessions</div></div>
@@ -625,7 +625,7 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
       <button className="back" onClick={onBack}>← Back</button>
       <div className="sh">
         <div className="sh-eye">AI Session Prep</div>
-        <div className="sh-title">{privacy(yp.name)} · <em>Session {ypSessions.length + 1}</em></div>
+        <div className="sh-title">{yp.name} · <em>Session {ypSessions.length + 1}</em></div>
       </div>
       <div className="body-start" />
       <div className="scroll">
@@ -634,7 +634,7 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
           {loading ? (
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
               <Spinner />
-              <span className="ai-text" style={{ marginLeft:8 }}>Analysing {privacy(yp.name)}'s journey...</span>
+              <span className="ai-text" style={{ marginLeft:8 }}>Analysing {yp.name}'s journey...</span>
             </div>
           ) : error ? (
             <div className="ai-text" style={{ color:T.rose }}>Couldn't generate prep: {error}</div>
@@ -761,12 +761,12 @@ function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
       <button className="back" onClick={onBack}>← Back</button>
       <div className="sh">
         <div className="sh-eye">Session Log</div>
-        <div className="sh-title">{privacy(yp.name)} · <em>Session {ypSessions.length + 1}</em></div>
+        <div className="sh-title">{yp.name} · <em>Session {ypSessions.length + 1}</em></div>
       </div>
       <div className="body-start" />
       <div className="scroll">
         <Card>
-          <div className="cq">"How did {privacy(yp.name)} show up today?"</div>
+          <div className="cq">"How did {yp.name} show up today?"</div>
           <div className="emoji-row">
             {ARRIVAL_OPTIONS.map(opt => (
               <div key={opt.value} className={`eo${arrival === opt.value ? ' sel' : ''}`} onClick={() => setArrival(opt.value)}>
@@ -1235,10 +1235,6 @@ export default function Dashboard() {
   const [selectedSession, setSelectedSession] = useState(null)
   const [onboardingDone, setOnboardingDone] = useState(false)
   const [showPrepPrompt, setShowPrepPrompt] = useState(false)
-  const [privacyMode, setPrivacyMode] = useState(false)
-
-  // Helper: wrap any name through privacy filter
-  const pn = (name) => privacyName(name, privacyMode)
 
   const orgId = mentor?.org_id || '00000000-0000-0000-0000-000000000001'
 
@@ -1254,25 +1250,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const init = async () => {
-      // Check for ?demo=true in URL
-      const params = new URLSearchParams(window.location.search)
-      const isDemo = params.get('demo') === 'true'
-
-      if (isDemo) {
-        // Demo mode — skip auth, load demo org data directly
-        const demoOrgId = '00000000-0000-0000-0000-000000000001'
-        const [ypRes, sessRes] = await Promise.all([
-          fetch(`/api/young-people?orgId=${demoOrgId}`),
-          fetch(`/api/sessions?orgId=${demoOrgId}`),
-        ])
-        setMentor({ name: 'Jordan Clarke', id: 'demo', email: 'jordan@riverside.org.uk', org_id: demoOrgId, role: 'admin', work_context: 'youth_mentoring', organisations: { name: 'Riverside Youth Trust' } })
-        setYP(await ypRes.json())
-        setSessions(await sessRes.json())
-        setOnboardingDone(true)
-        setLoading(false)
-        return
-      }
-
       try {
         const { getSupabase } = await import('@/lib/supabase')
         const sb = getSupabase()
@@ -1567,41 +1544,21 @@ export default function Dashboard() {
 
       {screen === 'home' && (
         <div style={{ position:'relative' }}>
-          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} privacy={pn} />
-          <div style={{ position:'fixed', top:22, right:18, display:'flex', gap:8, zIndex:50 }}>
-            {/* Privacy toggle */}
-            <div onClick={() => setPrivacyMode(!privacyMode)} style={{ cursor:'pointer', padding:8, borderRadius:'50%', background: privacyMode ? T.sage : 'rgba(255,255,255,0.8)', backdropFilter:'blur(8px)', transition:'all 0.2s' }} title={privacyMode ? 'Show names' : 'Hide names'}>
-              <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
-                {privacyMode ? (
-                  <>
-                    <path d="M1 11s4-7 10-7 10 7 10 7-4 7-10 7S1 11 1 11z" stroke="white" strokeWidth="1.7" strokeLinejoin="round"/>
-                    <circle cx="11" cy="11" r="3" stroke="white" strokeWidth="1.7"/>
-                    <line x1="3" y1="3" x2="19" y2="19" stroke="white" strokeWidth="1.7" strokeLinecap="round"/>
-                  </>
-                ) : (
-                  <>
-                    <path d="M1 11s4-7 10-7 10 7 10 7-4 7-10 7S1 11 1 11z" stroke={T.muted} strokeWidth="1.7" strokeLinejoin="round"/>
-                    <circle cx="11" cy="11" r="3" stroke={T.muted} strokeWidth="1.7"/>
-                  </>
-                )}
-              </svg>
-            </div>
-            {/* Settings gear */}
-            <div onClick={() => nav('settings')} style={{ cursor:'pointer', padding:8, borderRadius:'50%', background:'rgba(255,255,255,0.8)', backdropFilter:'blur(8px)' }}>
-              <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
-                <circle cx="11" cy="11" r="3" stroke={T.muted} strokeWidth="1.7"/>
-                <path d="M11 1.5V4M11 18V20.5M1.5 11H4M18 11H20.5M3.8 3.8L5.6 5.6M16.4 16.4L18.2 18.2M18.2 3.8L16.4 5.6M5.6 16.4L3.8 18.2" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </div>
+          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} />
+          <div onClick={() => nav('settings')} style={{ position:'fixed', top:22, right:18, cursor:'pointer', padding:8, borderRadius:'50%', zIndex:50, background:'rgba(255,255,255,0.8)', backdropFilter:'blur(8px)' }}>
+            <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+              <circle cx="11" cy="11" r="3" stroke={T.muted} strokeWidth="1.7"/>
+              <path d="M11 1.5V4M11 18V20.5M1.5 11H4M18 11H20.5M3.8 3.8L5.6 5.6M16.4 16.4L18.2 18.2M18.2 3.8L16.4 5.6M5.6 16.4L3.8 18.2" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
           </div>
         </div>
       )}
-      {screen === 'people' && <PeopleScreen youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} mentor={mentor} privacy={pn} />}
-      {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} privacy={pn} />}
+      {screen === 'people' && <PeopleScreen youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} mentor={mentor} />}
+      {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} />}
       {screen === 'insights' && <InsightsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} />}
-      {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} privacy={pn} />}
-      {screen === 'prep' && <PrepScreen yp={selectedYP || youngPeople[0]} sessions={sessions} mentor={mentor} onNav={nav} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} privacy={pn} />}
-      {screen === 'log' && <LogScreen yp={logYP} sessions={sessions} mentor={mentor} orgId={orgId} onDone={onDoneLog} onBack={() => setScreen('home')} privacy={pn} />}
+      {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} />}
+      {screen === 'prep' && <PrepScreen yp={selectedYP || youngPeople[0]} sessions={sessions} mentor={mentor} onNav={nav} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} />}
+      {screen === 'log' && <LogScreen yp={logYP} sessions={sessions} mentor={mentor} orgId={orgId} onDone={onDoneLog} onBack={() => setScreen('home')} />}
       {screen === 'add-yp' && <AddYPScreen orgId={orgId} onDone={onDoneAddYP} onBack={() => setScreen('people')} />}
       {screen === 'report' && <ReportScreen sessions={sessions} youngPeople={youngPeople} mentor={mentor} onBack={() => setScreen('home')} />}
       {screen === 'settings' && <SettingsScreen mentor={mentor} onBack={() => setScreen('home')} onUpdateMentor={onUpdateMentor} onSignOut={onSignOut} />}
