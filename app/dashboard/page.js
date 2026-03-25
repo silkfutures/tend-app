@@ -271,7 +271,7 @@ function OnboardingAddYP({ orgId, onDone, onSkip }) {
 
 
 // ── SCREEN: HOME ──
-function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession, privacy }) {
+function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession, privacy = (n) => n }) {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = mentor?.name?.split(' ')[0] || mentor?.name || 'there'
@@ -399,7 +399,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
 }
 
 // ── SCREEN: PEOPLE ──
-function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor }) {
+function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor, privacy = (n) => n }) {
   const disengaged = youngPeople.find(yp => {
     const s = sessions.filter(x => x.young_person_id === yp.id)
     if (!s.length) return false
@@ -453,7 +453,7 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor }) {
 }
 
 // ── SCREEN: SESSIONS ──
-function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession }) {
+function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession, privacy = (n) => n }) {
   const today = new Date().toISOString().split('T')[0]
   const todaySessions = sessions.filter(s => s.date === today)
   const recentSessions = sessions.filter(s => s.date !== today).slice(0, 10)
@@ -507,7 +507,7 @@ function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession }) {
 }
 
 // ── SCREEN: YOUNG PERSON PROFILE ──
-function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt }) {
+function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = (n) => n }) {
   const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
   const stage = ypSessions[0]?.focus_step || 'Early'
   const totalSessions = ypSessions.length
@@ -578,7 +578,7 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt }) {
 }
 
 // ── SCREEN: AI SESSION PREP ──
-function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
+function PrepScreen({ yp, sessions, mentor, onNav, onBack, privacy = (n) => n }) {
   const [prep, setPrep] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -689,7 +689,7 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack }) {
 }
 
 // ── SCREEN: LOG SESSION ──
-function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack }) {
+function LogScreen({ yp, sessions, mentor, orgId, onDone, onBack, privacy = (n) => n }) {
   const ypSessions = sessions.filter(s => s.young_person_id === yp?.id)
   const stage = ypSessions[0]?.focus_step || 'Early'
 
