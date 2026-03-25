@@ -472,16 +472,6 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               )
             })()}
 
-            {/* Quick log bar — always visible */}
-            <div onClick={() => onNav('quick-log')} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:14, padding:'12px 16px', marginBottom:10, display:'flex', alignItems:'center', gap:12, cursor:'pointer', transition:'all 0.15s' }}>
-              <div style={{ width:36, height:36, borderRadius:10, background:'#E8F4FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>✎</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontWeight:500, color:T.dark }}>Quick log</div>
-                <div style={{ fontSize:11, color:T.muted, fontWeight:300 }}>Call, text, visit, or note</div>
-              </div>
-              <div style={{ fontSize:16, color:T.muted }}>→</div>
-            </div>
-
             {/* Today's Activity */}
             {(() => {
               const todaySess = sessions.filter(s => s.date === today)
@@ -558,11 +548,6 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
                 <div className="qt">Log Session</div>
                 <div className="qs">Face-to-face meeting</div>
               </div>
-              <div className="qbtn" onClick={() => onNav('quick-log')}>
-                <div className="qi" style={{ background:'#E8F4FF' }}>✎</div>
-                <div className="qt">Quick Log</div>
-                <div className="qs">Call, text, or note</div>
-              </div>
               <div className="qbtn" onClick={() => onNav('add-yp')}>
                 <div className="qi" style={{ background:T.amberPale }}>＋</div>
                 <div className="qt">Add Person</div>
@@ -572,6 +557,11 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
                 <div className="qi" style={{ background:'#F0EEFF' }}>◎</div>
                 <div className="qt">Impact Report</div>
                 <div className="qs">AI generated</div>
+              </div>
+              <div className="qbtn" onClick={() => onNav('sessions')}>
+                <div className="qi" style={{ background:T.rosePale }}>📅</div>
+                <div className="qt">Sessions</div>
+                <div className="qs">View all logs</div>
               </div>
             </div>
 
@@ -2340,8 +2330,8 @@ export default function Dashboard() {
       {screen === 'safeguarding' && <SafeguardingScreen sessions={sessions} youngPeople={youngPeople} onBack={() => setScreen('home')} privacy={pn} />}
       {screen === 'settings' && <SettingsScreen mentor={mentor} onBack={() => setScreen('home')} onUpdateMentor={onUpdateMentor} onSignOut={onSignOut} />}
 
-      {/* Floating Quick Log button — visible on home, people, sessions, insights, profile */}
-      {['home','people','sessions','insights','profile'].includes(screen) && (
+      {/* Floating Quick Log button — visible on people, sessions, insights, profile */}
+      {['people','sessions','insights','profile'].includes(screen) && (
         <div onClick={() => nav('quick-log')} style={{ position:'fixed', bottom: 90, right: 20, width:52, height:52, borderRadius:'50%', background:T.forest, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 4px 16px rgba(28,44,34,0.25)', zIndex:99, transition:'transform 0.2s' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M12 5V19M5 12H19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
