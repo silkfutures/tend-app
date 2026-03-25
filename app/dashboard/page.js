@@ -471,6 +471,16 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               )
             })()}
 
+            {/* Quick log bar — always visible */}
+            <div onClick={() => onNav('quick-log')} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:14, padding:'12px 16px', marginBottom:10, display:'flex', alignItems:'center', gap:12, cursor:'pointer', transition:'all 0.15s' }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:'#E8F4FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>✎</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:T.dark }}>Quick log</div>
+                <div style={{ fontSize:11, color:T.muted, fontWeight:300 }}>Call, text, visit, or note</div>
+              </div>
+              <div style={{ fontSize:16, color:T.muted }}>→</div>
+            </div>
+
             {openSG > 0 && (
               <div className="alert" style={{ cursor:'pointer' }} onClick={() => onNav('safeguarding')}>
                 <div className="alert-dot">⚑</div>
@@ -532,9 +542,20 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
             </div>
 
             {/* Daily export */}
-            <button className="btn-s" style={{ color:T.muted, borderColor:T.border, marginBottom:10 }} onClick={() => exportAndCopy(formatDailyExport(sessions, contactLogs, youngPeople))}>
-              📋 Copy today's record to clipboard
-            </button>
+            <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+              <button className="btn-s" style={{ flex:1, margin:0, color:T.muted, borderColor:T.border, fontSize:12, padding:11 }} onClick={() => exportAndCopy(formatDailyExport(sessions, contactLogs, youngPeople))}>
+                📋 Copy today's record
+              </button>
+              <button className="btn-s" style={{ flex:1, margin:0, color:T.muted, borderColor:T.border, fontSize:12, padding:11 }} onClick={() => {
+                const text = formatDailyExport(sessions, contactLogs, youngPeople)
+                const w = window.open('', '_blank')
+                w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Daily Record — ${new Date().toLocaleDateString('en-GB')}</title><style>body{font-family:Arial,sans-serif;font-size:13px;line-height:1.7;padding:40px;color:#1C2C22;max-width:800px;white-space:pre-wrap}@media print{body{padding:20px}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</body></html>`)
+                w.document.close()
+                setTimeout(() => w.print(), 300)
+              }}>
+                📄 Export PDF
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -668,6 +689,14 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
   const contactTypeLabels = { call:'📞 Call', text:'💬 Text', visit:'🏠 Visit', meeting:'👥 Meeting', email:'📧 Email', professional_contact:'🔗 Professional', note:'📝 Note' }
   const markerLabels = { arrested:'Last arrested', carried_weapon:'Last carried weapon', drug_use:'Last drug use', school_exclusion:'Last school exclusion', missing_episode:'Last missing episode', self_harm:'Last self-harm', hospitalisation:'Last hospitalisation', police_contact:'Last police contact', gang_association:'Gang association', custodial:'Last custodial' }
 
+  const exportPDF = () => {
+    const text = formatYPExport(yp, sessions, contactLogs, riskMarkers)
+    const w = window.open('', '_blank')
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${yp.name} — Tend Record</title><style>body{font-family:Arial,sans-serif;font-size:13px;line-height:1.6;padding:40px;color:#1C2C22;white-space:pre-wrap;max-width:800px}@media print{body{padding:20px}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'\n')}</body></html>`)
+    w.document.close()
+    setTimeout(() => w.print(), 300)
+  }
+
   return (
     <div className="screen active slide-in">
       <button className="back" onClick={onBack}>← Back</button>
@@ -684,8 +713,20 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
       <div className="body-start" />
       <div className="scroll">
 
+        {/* ── ACTION BUTTONS AT TOP ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
+          <button className="btn-p" style={{ margin:0, borderRadius:14, padding:13, fontSize:13 }} onClick={() => onNav('prep')}>✦ Session prep</button>
+          <button className="btn-p" style={{ margin:0, borderRadius:14, padding:13, fontSize:13, background:T.deep }} onClick={() => onNav('log')}>📋 Log session</button>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
+          <button className="btn-s" style={{ margin:0, padding:11, fontSize:12 }} onClick={() => onNav('quick-log')}>✎ Quick log</button>
+          <button className="btn-s" style={{ margin:0, padding:11, fontSize:12, display:'flex', alignItems:'center', justifyContent:'center', gap:4 }} onClick={exportPDF}>
+            <span>📄</span> Export PDF
+          </button>
+        </div>
+
         {showPrepPrompt && (
-          <div style={{ background:'linear-gradient(135deg,#4A7C59 0%,#2D4A3E 100%)', borderRadius:18, padding:18, marginBottom:10, cursor:'pointer', transition:'transform 0.2s' }} onClick={() => onNav('prep')}>
+          <div style={{ background:'linear-gradient(135deg,#4A7C59 0%,#2D4A3E 100%)', borderRadius:18, padding:18, marginBottom:10, cursor:'pointer' }} onClick={() => onNav('prep')}>
             <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
               <PulseDot />
               <span style={{ fontSize:9, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(255,255,255,0.55)' }}>Tend Intelligence</span>
@@ -755,9 +796,8 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
             </div>
           </div>
         ))}
-        <button className="btn-p" onClick={() => onNav('prep')} style={{ marginTop:8 }}>View session prep →</button>
-        <button className="btn-s" onClick={() => onNav('log')}>Log new session</button>
-        <button className="btn-s" style={{ color:T.muted, borderColor:T.border }} onClick={() => exportAndCopy(formatYPExport(yp, sessions, contactLogs, riskMarkers))}>📋 Export full record</button>
+
+        <button className="btn-s" style={{ color:T.muted, borderColor:T.border }} onClick={() => exportAndCopy(formatYPExport(yp, sessions, contactLogs, riskMarkers))}>📋 Copy full record to clipboard</button>
       </div>
     </div>
   )
@@ -1507,6 +1547,24 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
               if (report.recommendations) { lines.push('RECOMMENDATIONS'); lines.push(report.recommendations) }
               exportAndCopy(lines.join('\n'))
             }}>📋 Copy report to clipboard</button>
+            <button className="btn-s" style={{ color:T.muted, borderColor:T.border }} onClick={() => {
+              const lines = []
+              lines.push(`IMPACT REPORT — ${mentor?.organisations?.name || 'Organisation'}`)
+              lines.push(`Period: Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`)
+              lines.push(`Generated: ${new Date().toLocaleDateString('en-GB')}`)
+              lines.push(`Sessions: ${sessions.length} · Young people: ${youngPeople.length}`)
+              lines.push('')
+              if (report.executiveSummary) { lines.push('EXECUTIVE SUMMARY\n'); lines.push(report.executiveSummary); lines.push('') }
+              if (report.keyMetrics) { lines.push('KEY METRICS\n'); lines.push(report.keyMetrics); lines.push('') }
+              if (report.outcomesEvidence) { lines.push('OUTCOMES EVIDENCE\n'); lines.push(report.outcomesEvidence); lines.push('') }
+              if (report.highlights?.length) { lines.push('HIGHLIGHTS\n'); report.highlights.forEach(h => lines.push(`• ${h}`)); lines.push('') }
+              if (report.recommendations) { lines.push('RECOMMENDATIONS\n'); lines.push(report.recommendations) }
+              const text = lines.join('\n')
+              const w = window.open('', '_blank')
+              w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Impact Report — ${mentor?.organisations?.name || 'Tend'}</title><style>body{font-family:Arial,sans-serif;font-size:13px;line-height:1.7;padding:40px;color:#1C2C22;max-width:800px;white-space:pre-wrap}@media print{body{padding:20px}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</body></html>`)
+              w.document.close()
+              setTimeout(() => w.print(), 300)
+            }}>📄 Export as PDF</button>
           </>
         )}
       </div>
