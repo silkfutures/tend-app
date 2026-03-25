@@ -11,6 +11,146 @@ const T = {
   dark:'#1C2C22', mid:'#4A6455', muted:'#8FAA96', border:'#DDE8DF', bg:'#F4F7F4',
 }
 
+// ── EXPORT HELPERS ──
+function copyText(text) {
+  navigator.clipboard.writeText(text).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  })
+}
+
+function showCopiedToast() {
+  const el = document.createElement('div')
+  el.textContent = '✓ Copied to clipboard'
+  el.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1C2C22;color:white;padding:10px 20px;border-radius:10px;font-family:Outfit,sans-serif;font-size:13px;font-weight:400;z-index:10000;animation:up 0.3s ease;letter-spacing:0.02em'
+  document.body.appendChild(el)
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300) }, 1800)
+}
+
+function exportAndCopy(text) {
+  copyText(text)
+  showCopiedToast()
+}
+
+function formatSessionExport(s, ypName) {
+  const lines = []
+  lines.push(`SESSION RECORD — ${ypName}`)
+  lines.push(`Date: ${s.date}`)
+  lines.push(`Stage: ${s.focus_step || 'Not recorded'}`)
+  if (s.arrival_score) lines.push(`Arrival: ${s.arrival_score}/5`)
+  lines.push('')
+  if (s.ai_summary) { lines.push('Summary:'); lines.push(s.ai_summary); lines.push('') }
+  if (s.notes) { lines.push('Session notes:'); lines.push(s.notes); lines.push('') }
+  if (s.indicators && Object.keys(s.indicators).length > 0) {
+    lines.push('Indicators:')
+    Object.entries(s.indicators).forEach(([k,v]) => { if (v) lines.push(`  ${k}: ${Number(v).toFixed(1)}/10`) })
+    lines.push('')
+  }
+  if (s.safeguarding_concern) { lines.push('⚑ SAFEGUARDING CONCERN:'); lines.push(s.safeguarding_concern); lines.push('') }
+  return lines.join('\n')
+}
+
+function formatContactExport(c, ypName) {
+  const types = { call:'Phone call', text:'Text/message', visit:'Home visit', meeting:'Meeting', email:'Email', professional_contact:'Professional contact', note:'Note' }
+  const lines = []
+  lines.push(`CONTACT LOG — ${ypName || 'General'}`)
+  lines.push(`Date: ${c.date}`)
+  lines.push(`Type: ${types[c.contact_type] || c.contact_type}`)
+  if (c.professional_involved) lines.push(`Professional: ${c.professional_involved}`)
+  lines.push('')
+  lines.push(c.ai_cleaned_notes || c.notes || 'No notes recorded')
+  return lines.join('\n')
+}
+
+function formatDailyExport(sessions, contactLogs, youngPeople, date) {
+  const d = date || new Date().toISOString().split('T')[0]
+  const daySessions = sessions.filter(s => s.date === d)
+  const dayContacts = contactLogs.filter(c => c.date === d)
+  const ypName = (id) => youngPeople.find(y => y.id === id)?.name || 'General'
+
+  const lines = []
+  lines.push(`═══════════════════════════════════`)
+  lines.push(`DAILY RECORD — ${new Date(d).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}`)
+  lines.push(`═══════════════════════════════════`)
+  lines.push('')
+
+  if (dayContacts.length > 0) {
+    lines.push(`CONTACT DIARY (${dayContacts.length} entries)`)
+    lines.push('───────────────────────────────────')
+    dayContacts.forEach(c => {
+      lines.push('')
+      lines.push(formatContactExport(c, ypName(c.young_person_id)))
+    })
+    lines.push('')
+  }
+
+  if (daySessions.length > 0) {
+    lines.push(`SESSIONS (${daySessions.length})`)
+    lines.push('───────────────────────────────────')
+    daySessions.forEach(s => {
+      lines.push('')
+      lines.push(formatSessionExport(s, ypName(s.young_person_id)))
+    })
+  }
+
+  if (dayContacts.length === 0 && daySessions.length === 0) {
+    lines.push('No entries recorded for this date.')
+  }
+
+  return lines.join('\n')
+}
+
+function formatYPExport(yp, sessions, contactLogs, riskMarkers) {
+  const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
+  const ypContacts = contactLogs.filter(c => c.young_person_id === yp.id)
+  const ypMarkers = riskMarkers.filter(m => m.young_person_id === yp.id)
+  const stage = ypSessions[0]?.focus_step || 'Early'
+  const markerLabels = { arrested:'Last arrested', carried_weapon:'Last carried weapon', drug_use:'Last drug use', school_exclusion:'Last school exclusion', missing_episode:'Last missing episode', self_harm:'Last self-harm', hospitalisation:'Last hospitalisation', police_contact:'Last police contact', gang_association:'Gang association', custodial:'Last custodial' }
+
+  const lines = []
+  lines.push(`═══════════════════════════════════`)
+  lines.push(`YOUNG PERSON RECORD — ${yp.name}`)
+  lines.push(`═══════════════════════════════════`)
+  lines.push(`Area: ${yp.postcode || 'Not recorded'}`)
+  lines.push(`DOB: ${yp.dob || 'Not recorded'}`)
+  lines.push(`Current stage: ${stage}`)
+  lines.push(`Total sessions: ${ypSessions.length}`)
+  lines.push(`Total contacts: ${ypContacts.length}`)
+  lines.push('')
+
+  if (ypMarkers.length > 0) {
+    lines.push('RISK MARKERS')
+    lines.push('───────────────────────────────────')
+    ypMarkers.forEach(m => {
+      lines.push(`${markerLabels[m.marker_type] || m.marker_type}: ${m.last_date || 'No date'} [${m.status}]`)
+      if (m.notes) lines.push(`  ${m.notes}`)
+    })
+    lines.push('')
+  }
+
+  if (ypSessions.length > 0) {
+    lines.push('SESSION HISTORY')
+    lines.push('───────────────────────────────────')
+    ypSessions.forEach(s => { lines.push(''); lines.push(formatSessionExport(s, yp.name)) })
+    lines.push('')
+  }
+
+  if (ypContacts.length > 0) {
+    lines.push('CONTACT DIARY')
+    lines.push('───────────────────────────────────')
+    ypContacts.forEach(c => { lines.push(''); lines.push(formatContactExport(c, yp.name)) })
+  }
+
+  return lines.join('\n')
+}
+
 // ── PRIVACY HELPER ──
 function privacyName(name, privacyMode) {
   if (!privacyMode || !name) return name
@@ -271,7 +411,7 @@ function OnboardingAddYP({ orgId, onDone, onSkip }) {
 
 
 // ── SCREEN: HOME ──
-function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession, privacy = (n) => n }) {
+function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession, privacy = (n) => n, contactLogs = [] }) {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = mentor?.name?.split(' ')[0] || mentor?.name || 'there'
@@ -390,6 +530,11 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
                 <div className="qs">AI generated</div>
               </div>
             </div>
+
+            {/* Daily export */}
+            <button className="btn-s" style={{ color:T.muted, borderColor:T.border, marginBottom:10 }} onClick={() => exportAndCopy(formatDailyExport(sessions, contactLogs, youngPeople))}>
+              📋 Copy today's record to clipboard
+            </button>
           </>
         )}
       </div>
@@ -612,6 +757,7 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
         ))}
         <button className="btn-p" onClick={() => onNav('prep')} style={{ marginTop:8 }}>View session prep →</button>
         <button className="btn-s" onClick={() => onNav('log')}>Log new session</button>
+        <button className="btn-s" style={{ color:T.muted, borderColor:T.border }} onClick={() => exportAndCopy(formatYPExport(yp, sessions, contactLogs, riskMarkers))}>📋 Export full record</button>
       </div>
     </div>
   )
@@ -839,7 +985,10 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
       <div style={{ textAlign:'center', padding:40 }}>
         <div style={{ width:56, height:56, borderRadius:'50%', background:T.pale, border:`1.5px solid ${T.mist}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22, color:T.sage }}>✓</div>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.dark, marginBottom:6 }}>Session saved</div>
-        <div style={{ fontSize:13, color:T.muted }}>Returning to home...</div>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:16 }}>Returning to home...</div>
+        <button onClick={() => exportAndCopy(formatSessionExport({ date: new Date().toISOString().split('T')[0], focus_step: focusStep, arrival_score: arrival, notes, ai_summary: aiSummary?.summary, indicators, safeguarding_concern: safeguarding.trim() || null }, yp.name))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'8px 16px', fontSize:12, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>
+          📋 Copy session record
+        </button>
       </div>
     </div>
   )
@@ -1039,7 +1188,10 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
       <div style={{ textAlign:'center', padding:40 }}>
         <div style={{ width:56, height:56, borderRadius:'50%', background:T.pale, border:`1.5px solid ${T.mist}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22, color:T.sage }}>✓</div>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.dark, marginBottom:6 }}>Logged</div>
-        <div style={{ fontSize:13, color:T.muted }}>Contact recorded.</div>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:16 }}>Contact recorded.</div>
+        <button onClick={() => exportAndCopy(formatContactExport({ date: new Date().toISOString().split('T')[0], contact_type: contactType, professional_involved: professional.trim() || null, notes: cleanedNotes || notes, ai_cleaned_notes: cleanedNotes }, selectedYP ? youngPeople.find(y => y.id === selectedYP)?.name : 'General'))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'8px 16px', fontSize:12, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>
+          📋 Copy to clipboard
+        </button>
       </div>
     </div>
   )
@@ -1337,9 +1489,25 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
         </Card>
 
         {generated && (
-          <button className="btn-p" onClick={generate} disabled={loading} style={{ opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Regenerating...' : '↺ Regenerate report'}
-          </button>
+          <>
+            <button className="btn-p" onClick={generate} disabled={loading} style={{ opacity: loading ? 0.6 : 1 }}>
+              {loading ? 'Regenerating...' : '↺ Regenerate report'}
+            </button>
+            <button className="btn-s" style={{ color:T.muted, borderColor:T.border }} onClick={() => {
+              const lines = []
+              lines.push(`IMPACT REPORT — ${mentor?.organisations?.name || 'Organisation'}`)
+              lines.push(`Period: Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`)
+              lines.push(`Generated: ${new Date().toLocaleDateString('en-GB')}`)
+              lines.push(`Sessions: ${sessions.length} · Young people: ${youngPeople.length}`)
+              lines.push('')
+              if (report.executiveSummary) { lines.push('EXECUTIVE SUMMARY'); lines.push(report.executiveSummary); lines.push('') }
+              if (report.keyMetrics) { lines.push('KEY METRICS'); lines.push(report.keyMetrics); lines.push('') }
+              if (report.outcomesEvidence) { lines.push('OUTCOMES EVIDENCE'); lines.push(report.outcomesEvidence); lines.push('') }
+              if (report.highlights?.length) { lines.push('HIGHLIGHTS'); report.highlights.forEach(h => lines.push(`• ${h}`)); lines.push('') }
+              if (report.recommendations) { lines.push('RECOMMENDATIONS'); lines.push(report.recommendations) }
+              exportAndCopy(lines.join('\n'))
+            }}>📋 Copy report to clipboard</button>
+          </>
         )}
       </div>
     </div>
@@ -1962,7 +2130,7 @@ export default function Dashboard() {
 
       {screen === 'home' && (
         <div style={{ position:'relative' }}>
-          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} privacy={pn} />
+          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} privacy={pn} contactLogs={contactLogs} />
           <div style={{ position:'fixed', top:22, right:18, display:'flex', gap:8, zIndex:50 }}>
             {/* Privacy toggle */}
             <div onClick={() => setPrivacyMode(!privacyMode)} style={{ cursor:'pointer', padding:8, borderRadius:'50%', background: privacyMode ? T.sage : 'rgba(255,255,255,0.8)', backdropFilter:'blur(8px)', transition:'all 0.2s' }} title={privacyMode ? 'Show names' : 'Hide names'}>
