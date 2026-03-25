@@ -417,6 +417,7 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
   const firstName = mentor?.name?.split(' ')[0] || mentor?.name || 'there'
   const today = new Date().toISOString().split('T')[0]
   const todayCount = sessions.filter(s => s.date === today).length
+  const [exportDate, setExportDate] = useState(today)
 
   const disengaged = youngPeople.find(yp => {
     const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
@@ -481,6 +482,39 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               <div style={{ fontSize:16, color:T.muted }}>→</div>
             </div>
 
+            {/* Today's Activity */}
+            {(() => {
+              const todaySess = sessions.filter(s => s.date === today)
+              const todayContacts = contactLogs.filter(c => c.date === today)
+              const totalToday = todaySess.length + todayContacts.length
+              if (totalToday === 0) return null
+              const ypName = (id) => youngPeople.find(y => y.id === id)?.name || 'General'
+              const ctLabels = { call:'📞', text:'💬', visit:'🏠', meeting:'👥', email:'📧', professional_contact:'🔗', note:'📝' }
+              return (
+                <>
+                  <div className="sec">Today's activity · {totalToday} entries</div>
+                  {todayContacts.map(c => (
+                    <div key={c.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', gap:10, alignItems:'flex-start' }}>
+                      <div style={{ fontSize:14, marginTop:2 }}>{ctLabels[c.contact_type] || '📝'}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>{privacy(ypName(c.young_person_id))}{c.professional_involved ? ` · ${c.professional_involved}` : ''}</div>
+                        <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(c.ai_cleaned_notes || c.notes || '').slice(0, 80)}{(c.notes?.length || 0) > 80 ? '...' : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {todaySess.map(s => (
+                    <div key={s.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', gap:10, alignItems:'flex-start' }}>
+                      <div style={{ fontSize:14, marginTop:2 }}>📋</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>{privacy(ypName(s.young_person_id))} · Session</div>
+                        <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(s.ai_summary || s.notes || '').slice(0, 80)}...</div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )
+            })()}
+
             {openSG > 0 && (
               <div className="alert" style={{ cursor:'pointer' }} onClick={() => onNav('safeguarding')}>
                 <div className="alert-dot">⚑</div>
@@ -541,21 +575,25 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               </div>
             </div>
 
-            {/* Daily export */}
-            <div style={{ display:'flex', gap:8, marginBottom:10 }}>
-              <button className="btn-s" style={{ flex:1, margin:0, color:T.muted, borderColor:T.border, fontSize:12, padding:11 }} onClick={() => exportAndCopy(formatDailyExport(sessions, contactLogs, youngPeople))}>
-                📋 Copy today's record
-              </button>
-              <button className="btn-s" style={{ flex:1, margin:0, color:T.muted, borderColor:T.border, fontSize:12, padding:11 }} onClick={() => {
-                const text = formatDailyExport(sessions, contactLogs, youngPeople)
-                const w = window.open('', '_blank')
-                w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Daily Record — ${new Date().toLocaleDateString('en-GB')}</title><style>body{font-family:Arial,sans-serif;font-size:13px;line-height:1.7;padding:40px;color:#1C2C22;max-width:800px;white-space:pre-wrap}@media print{body{padding:20px}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</body></html>`)
-                w.document.close()
-                setTimeout(() => w.print(), 300)
-              }}>
-                📄 Export PDF
-              </button>
-            </div>
+            {/* Daily export with date picker */}
+            <Card style={{ padding:14 }}>
+              <div className="card-label">Export daily record</div>
+              <input type="date" value={exportDate} onChange={e => setExportDate(e.target.value)} style={{ width:'100%', background:T.bg, border:`1px solid ${T.border}`, borderRadius:10, padding:'8px 12px', fontSize:12, color:T.dark, fontFamily:"'Outfit',sans-serif", marginBottom:10, outline:'none' }} />
+              <div style={{ display:'flex', gap:8 }}>
+                <button style={{ flex:1, padding:10, background:'none', border:`1px solid ${T.border}`, borderRadius:10, fontSize:12, color:T.muted, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }} onClick={() => exportAndCopy(formatDailyExport(sessions, contactLogs, youngPeople, exportDate))}>
+                  📋 Copy
+                </button>
+                <button style={{ flex:1, padding:10, background:'none', border:`1px solid ${T.border}`, borderRadius:10, fontSize:12, color:T.muted, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }} onClick={() => {
+                  const text = formatDailyExport(sessions, contactLogs, youngPeople, exportDate)
+                  const w = window.open('', '_blank')
+                  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Daily Record — ${exportDate}</title><style>body{font-family:Arial,sans-serif;font-size:13px;line-height:1.7;padding:40px;color:#1C2C22;max-width:800px;white-space:pre-wrap}@media print{body{padding:20px}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</body></html>`)
+                  w.document.close()
+                  setTimeout(() => w.print(), 300)
+                }}>
+                  📄 PDF
+                </button>
+              </div>
+            </Card>
           </>
         )}
       </div>
@@ -673,12 +711,18 @@ function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession, privacy
 }
 
 // ── SCREEN: YOUNG PERSON PROFILE ──
-function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = (n) => n, contactLogs = [], riskMarkers = [] }) {
+function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = (n) => n, contactLogs = [], riskMarkers = [], onRefresh }) {
   const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
   const stage = ypSessions[0]?.focus_step || 'Early'
   const totalSessions = ypSessions.length
   const ypContacts = contactLogs.filter(c => c.young_person_id === yp.id)
   const ypMarkers = riskMarkers.filter(m => m.young_person_id === yp.id)
+
+  const [showAddMarker, setShowAddMarker] = useState(false)
+  const [newMarkerType, setNewMarkerType] = useState('police_contact')
+  const [newMarkerDate, setNewMarkerDate] = useState(new Date().toISOString().split('T')[0])
+  const [newMarkerNotes, setNewMarkerNotes] = useState('')
+  const [savingMarker, setSavingMarker] = useState(false)
 
   const avgScores = {}
   INDICATORS.forEach(ind => {
@@ -688,6 +732,31 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
 
   const contactTypeLabels = { call:'📞 Call', text:'💬 Text', visit:'🏠 Visit', meeting:'👥 Meeting', email:'📧 Email', professional_contact:'🔗 Professional', note:'📝 Note' }
   const markerLabels = { arrested:'Last arrested', carried_weapon:'Last carried weapon', drug_use:'Last drug use', school_exclusion:'Last school exclusion', missing_episode:'Last missing episode', self_harm:'Last self-harm', hospitalisation:'Last hospitalisation', police_contact:'Last police contact', gang_association:'Gang association', custodial:'Last custodial' }
+  const markerOptions = Object.entries(markerLabels)
+
+  const saveMarker = async () => {
+    if (!newMarkerType) return
+    setSavingMarker(true)
+    try {
+      await fetch('/api/risk-markers', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ young_person_id: yp.id, marker_type: newMarkerType, last_date: newMarkerDate || null, notes: newMarkerNotes.trim() || null, status: 'active', updated_at: new Date().toISOString() })
+      })
+      setShowAddMarker(false); setNewMarkerNotes(''); setNewMarkerDate(new Date().toISOString().split('T')[0])
+      if (onRefresh) onRefresh()
+    } catch(e) {}
+    setSavingMarker(false)
+  }
+
+  const updateMarkerStatus = async (marker, newStatus) => {
+    try {
+      await fetch('/api/risk-markers', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ young_person_id: yp.id, marker_type: marker.marker_type, last_date: marker.last_date, notes: marker.notes, status: newStatus, updated_at: new Date().toISOString() })
+      })
+      if (onRefresh) onRefresh()
+    } catch(e) {}
+  }
 
   const exportPDF = () => {
     const text = formatYPExport(yp, sessions, contactLogs, riskMarkers)
@@ -749,23 +818,49 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
         </Card>
 
         {/* Risk Markers */}
-        {ypMarkers.length > 0 && (
-          <Card>
-            <div className="card-label">Risk markers</div>
-            {ypMarkers.map(m => (
-              <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:`1px solid ${T.border}` }}>
-                <div>
-                  <div style={{ fontSize:12, fontWeight:500, color: m.status === 'active' ? T.rose : T.dark }}>{markerLabels[m.marker_type] || m.marker_type}</div>
-                  {m.notes && <div style={{ fontSize:11, color:T.muted, fontWeight:300, marginTop:2, lineHeight:1.4 }}>{m.notes}</div>}
-                </div>
-                <div style={{ textAlign:'right', flexShrink:0, marginLeft:12 }}>
-                  <div style={{ fontSize:11, fontWeight:500, color: m.status === 'active' ? T.rose : T.muted }}>{m.last_date || '—'}</div>
-                  <span style={{ fontSize:9, fontWeight:600, padding:'2px 8px', borderRadius:20, background: m.status === 'active' ? T.rosePale : T.pale, color: m.status === 'active' ? T.rose : T.sage, textTransform:'uppercase', letterSpacing:'0.06em' }}>{m.status}</span>
+        <Card>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <div className="card-label" style={{ marginBottom:0 }}>Risk markers</div>
+            <div onClick={() => setShowAddMarker(!showAddMarker)} style={{ fontSize:10, fontWeight:500, color:T.sage, cursor:'pointer', padding:'3px 10px', borderRadius:20, border:`1px solid ${T.mist}`, background:T.pale }}>
+              {showAddMarker ? '✕ Cancel' : '+ Add'}
+            </div>
+          </div>
+
+          {showAddMarker && (
+            <div style={{ padding:'12px 0', borderBottom:`1px solid ${T.border}`, marginBottom:8 }}>
+              <div className="inp-label">Marker type</div>
+              <select value={newMarkerType} onChange={e => setNewMarkerType(e.target.value)} style={{ width:'100%', background:T.bg, border:`1px solid ${T.border}`, borderRadius:12, padding:'10px 14px', fontSize:12, color:T.dark, fontFamily:"'Outfit',sans-serif", fontWeight:400, outline:'none', marginBottom:8 }}>
+                {markerOptions.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
+              </select>
+              <div className="inp-label">Date</div>
+              <input className="inp" type="date" value={newMarkerDate} onChange={e => setNewMarkerDate(e.target.value)} />
+              <div className="inp-label">Notes</div>
+              <textarea className="inp" rows={2} value={newMarkerNotes} onChange={e => setNewMarkerNotes(e.target.value)} placeholder="Brief description..." />
+              <button onClick={saveMarker} disabled={savingMarker} className="btn-p" style={{ fontSize:13, padding:11 }}>
+                {savingMarker ? 'Saving...' : 'Add marker'}
+              </button>
+            </div>
+          )}
+
+          {ypMarkers.length === 0 && !showAddMarker && (
+            <div style={{ fontSize:12, color:T.muted, padding:'4px 0' }}>No risk markers recorded</div>
+          )}
+          {ypMarkers.map(m => (
+            <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:`1px solid ${T.border}` }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, fontWeight:500, color: m.status === 'active' ? T.rose : T.dark }}>{markerLabels[m.marker_type] || m.marker_type}</div>
+                {m.notes && <div style={{ fontSize:11, color:T.muted, fontWeight:300, marginTop:2, lineHeight:1.4 }}>{m.notes}</div>}
+                <div onClick={() => updateMarkerStatus(m, m.status === 'active' ? 'historic' : 'active')} style={{ fontSize:10, color:T.sage, cursor:'pointer', marginTop:4, fontWeight:500 }}>
+                  {m.status === 'active' ? 'Mark as historic' : 'Mark as active'}
                 </div>
               </div>
-            ))}
-          </Card>
-        )}
+              <div style={{ textAlign:'right', flexShrink:0, marginLeft:12 }}>
+                <div style={{ fontSize:11, fontWeight:500, color: m.status === 'active' ? T.rose : T.muted }}>{m.last_date || '—'}</div>
+                <span style={{ fontSize:9, fontWeight:600, padding:'2px 8px', borderRadius:20, background: m.status === 'active' ? T.rosePale : T.pale, color: m.status === 'active' ? T.rose : T.sage, textTransform:'uppercase', letterSpacing:'0.06em' }}>{m.status}</span>
+              </div>
+            </div>
+          ))}
+        </Card>
 
         {/* Contact Log */}
         {ypContacts.length > 0 && (
@@ -855,6 +950,18 @@ function PrepScreen({ yp, sessions, mentor, onNav, onBack, privacy = (n) => n })
       </div>
       <div className="body-start" />
       <div className="scroll">
+
+        {/* Last session recap */}
+        {ypSessions.length > 0 && (
+          <Card style={{ borderLeft:`3px solid ${T.mist}` }}>
+            <div className="card-label">Last session · {ypSessions[0].date}</div>
+            <div className="ai-text">{ypSessions[0].ai_summary || ypSessions[0].notes?.slice(0, 250) || 'No notes recorded'}{(ypSessions[0].notes?.length || 0) > 250 && !ypSessions[0].ai_summary ? '...' : ''}</div>
+            {ypSessions[0].safeguarding_concern && (
+              <div style={{ marginTop:8, padding:'6px 10px', background:T.rosePale, borderRadius:8, fontSize:11, color:T.rose, fontWeight:500 }}>⚑ Safeguarding concern flagged</div>
+            )}
+          </Card>
+        )}
+
         <div className="ai-insight">
           <AITag />
           {loading ? (
@@ -1014,7 +1121,6 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
         })
       })
       setSaved(true)
-      setTimeout(() => onDone(), 1500)
     } catch(e) {}
     setSaving(false)
   }
@@ -1025,9 +1131,12 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
       <div style={{ textAlign:'center', padding:40 }}>
         <div style={{ width:56, height:56, borderRadius:'50%', background:T.pale, border:`1.5px solid ${T.mist}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22, color:T.sage }}>✓</div>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.dark, marginBottom:6 }}>Session saved</div>
-        <div style={{ fontSize:13, color:T.muted, marginBottom:16 }}>Returning to home...</div>
-        <button onClick={() => exportAndCopy(formatSessionExport({ date: new Date().toISOString().split('T')[0], focus_step: focusStep, arrival_score: arrival, notes, ai_summary: aiSummary?.summary, indicators, safeguarding_concern: safeguarding.trim() || null }, yp.name))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'8px 16px', fontSize:12, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:20 }}>for {privacy(yp.name)}</div>
+        <button onClick={() => exportAndCopy(formatSessionExport({ date: new Date().toISOString().split('T')[0], focus_step: focusStep, arrival_score: arrival, notes, ai_summary: aiSummary?.summary, indicators, safeguarding_concern: safeguarding.trim() || null }, yp.name))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'10px 20px', fontSize:13, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500, marginBottom:10, display:'block', width:'100%', maxWidth:260, margin:'0 auto 10px' }}>
           📋 Copy session record
+        </button>
+        <button onClick={onDone} className="btn-p" style={{ maxWidth:260, margin:'0 auto' }}>
+          Done →
         </button>
       </div>
     </div>
@@ -1218,7 +1327,6 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
         })
       })
       setSaved(true)
-      setTimeout(() => onDone(), 1200)
     } catch(e) {}
     setSaving(false)
   }
@@ -1228,9 +1336,12 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
       <div style={{ textAlign:'center', padding:40 }}>
         <div style={{ width:56, height:56, borderRadius:'50%', background:T.pale, border:`1.5px solid ${T.mist}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22, color:T.sage }}>✓</div>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.dark, marginBottom:6 }}>Logged</div>
-        <div style={{ fontSize:13, color:T.muted, marginBottom:16 }}>Contact recorded.</div>
-        <button onClick={() => exportAndCopy(formatContactExport({ date: new Date().toISOString().split('T')[0], contact_type: contactType, professional_involved: professional.trim() || null, notes: cleanedNotes || notes, ai_cleaned_notes: cleanedNotes }, selectedYP ? youngPeople.find(y => y.id === selectedYP)?.name : 'General'))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'8px 16px', fontSize:12, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:20 }}>Contact recorded.</div>
+        <button onClick={() => exportAndCopy(formatContactExport({ date: new Date().toISOString().split('T')[0], contact_type: contactType, professional_involved: professional.trim() || null, notes: cleanedNotes || notes, ai_cleaned_notes: cleanedNotes }, selectedYP ? youngPeople.find(y => y.id === selectedYP)?.name : 'General'))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'10px 20px', fontSize:13, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500, display:'block', width:'100%', maxWidth:260, margin:'0 auto 10px' }}>
           📋 Copy to clipboard
+        </button>
+        <button onClick={onDone} className="btn-p" style={{ maxWidth:260, margin:'0 auto' }}>
+          Done →
         </button>
       </div>
     </div>
@@ -2220,7 +2331,7 @@ export default function Dashboard() {
       {screen === 'people' && <PeopleScreen youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} mentor={mentor} privacy={pn} />}
       {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} privacy={pn} />}
       {screen === 'insights' && <InsightsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} />}
-      {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} privacy={pn} contactLogs={contactLogs} riskMarkers={riskMarkers} />}
+      {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} privacy={pn} contactLogs={contactLogs} riskMarkers={riskMarkers} onRefresh={() => refreshData()} />}
       {screen === 'prep' && <PrepScreen yp={selectedYP || youngPeople[0]} sessions={sessions} mentor={mentor} onNav={nav} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} privacy={pn} />}
       {screen === 'log' && <LogScreen yp={logYP} sessions={sessions} mentor={mentor} orgId={orgId} onDone={onDoneLog} onBack={() => setScreen('home')} privacy={pn} youngPeople={youngPeople} />}
       {screen === 'quick-log' && <QuickLogScreen youngPeople={youngPeople} mentor={mentor} orgId={orgId} onDone={async () => { await refreshData(); setScreen('home') }} onBack={() => setScreen('home')} privacy={pn} />}
@@ -2228,6 +2339,15 @@ export default function Dashboard() {
       {screen === 'report' && <ReportScreen sessions={sessions} youngPeople={youngPeople} mentor={mentor} onBack={() => setScreen('home')} />}
       {screen === 'safeguarding' && <SafeguardingScreen sessions={sessions} youngPeople={youngPeople} onBack={() => setScreen('home')} privacy={pn} />}
       {screen === 'settings' && <SettingsScreen mentor={mentor} onBack={() => setScreen('home')} onUpdateMentor={onUpdateMentor} onSignOut={onSignOut} />}
+
+      {/* Floating Quick Log button — visible on home, people, sessions, insights, profile */}
+      {['home','people','sessions','insights','profile'].includes(screen) && (
+        <div onClick={() => nav('quick-log')} style={{ position:'fixed', bottom: 90, right: 20, width:52, height:52, borderRadius:'50%', background:T.forest, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 4px 16px rgba(28,44,34,0.25)', zIndex:99, transition:'transform 0.2s' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5V19M5 12H19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </div>
+      )}
     </>
   )
 }
