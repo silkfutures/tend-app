@@ -411,13 +411,15 @@ function OnboardingAddYP({ orgId, onDone, onSkip }) {
 
 
 // ── SCREEN: HOME ──
-function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession, privacy = (n) => n, contactLogs = [] }) {
+function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelectSession, privacy = (n) => n, contactLogs = [], scheduledSessions = [] }) {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = mentor?.name?.split(' ')[0] || mentor?.name || 'there'
   const today = new Date().toISOString().split('T')[0]
   const todayCount = sessions.filter(s => s.date === today).length
+  const [heroExpanded, setHeroExpanded] = useState(false)
   const [exportDate, setExportDate] = useState(today)
+  const [expandedActivity, setExpandedActivity] = useState(null)
 
   const disengaged = youngPeople.find(yp => {
     const ypSessions = sessions.filter(s => s.young_person_id === yp.id)
@@ -445,16 +447,17 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
 
         {youngPeople.length > 0 && (
           <>
-            <div className="today-hero">
+            <div className="today-hero" onClick={() => setHeroExpanded(!heroExpanded)} style={{ cursor:'pointer' }}>
               <div>
                 <div className="th-count">{youngPeople.length}</div>
                 <div className="th-label">in your caseload</div>
               </div>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
-                {youngPeople.slice(0,3).map(yp => (
+                {(heroExpanded ? youngPeople : youngPeople.slice(0,3)).map(yp => (
                   <div key={yp.id} className="th-chip">{privacy(yp.name)}</div>
                 ))}
-                {youngPeople.length > 3 && <div className="th-chip">+{youngPeople.length - 3} more</div>}
+                {!heroExpanded && youngPeople.length > 3 && <div className="th-chip" style={{ cursor:'pointer' }}>+{youngPeople.length - 3} more ▾</div>}
+                {heroExpanded && youngPeople.length > 3 && <div className="th-chip" style={{ cursor:'pointer', opacity:0.6 }}>Show less ▴</div>}
               </div>
             </div>
 
@@ -472,6 +475,37 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               )
             })()}
 
+            {/* Upcoming sessions */}
+            {scheduledSessions.length > 0 && (() => {
+              const upcoming = scheduledSessions
+                .filter(s => s.date >= today)
+                .sort((a, b) => a.date === b.date ? (a.time || '').localeCompare(b.time || '') : a.date.localeCompare(b.date))
+                .slice(0, 5)
+              if (upcoming.length === 0) return null
+              const ypName = (id) => youngPeople.find(y => y.id === id)?.name || 'Unknown'
+              const isToday = (d) => d === today
+              return (
+                <>
+                  <div className="sec">Upcoming sessions</div>
+                  {upcoming.map(s => (
+                    <div key={s.id} style={{ background: isToday(s.date) ? 'linear-gradient(135deg,#4A7C59 0%,#2D4A3E 100%)' : T.white, border: isToday(s.date) ? 'none' : `1px solid ${T.border}`, borderRadius:14, padding:'12px 16px', marginBottom:8, display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ width:40, height:40, borderRadius:10, background: isToday(s.date) ? 'rgba(255,255,255,0.12)' : T.pale, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <div style={{ fontSize:14, fontWeight:600, color: isToday(s.date) ? 'white' : T.sage, lineHeight:1 }}>{new Date(s.date + 'T00:00').getDate()}</div>
+                        <div style={{ fontSize:8, color: isToday(s.date) ? 'rgba(255,255,255,0.6)' : T.muted, textTransform:'uppercase', fontWeight:600 }}>{new Date(s.date + 'T00:00').toLocaleDateString('en-GB', { month:'short' })}</div>
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:500, color: isToday(s.date) ? 'white' : T.dark }}>{privacy(ypName(s.young_person_id))}</div>
+                        <div style={{ fontSize:11, color: isToday(s.date) ? 'rgba(255,255,255,0.6)' : T.muted, fontWeight:300 }}>
+                          {s.time || 'Time TBC'}{s.location ? ` · ${s.location}` : ''}
+                        </div>
+                      </div>
+                      {isToday(s.date) && <div style={{ fontSize:9, fontWeight:600, padding:'3px 10px', borderRadius:20, background:'rgba(255,255,255,0.15)', color:'white', textTransform:'uppercase', letterSpacing:'0.06em' }}>Today</div>}
+                    </div>
+                  ))}
+                </>
+              )
+            })()}
+
             {/* Today's Activity */}
             {(() => {
               const todaySess = sessions.filter(s => s.date === today)
@@ -484,21 +518,45 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
                 <>
                   <div className="sec">Today's activity · {totalToday} entries</div>
                   {todayContacts.map(c => (
-                    <div key={c.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', gap:10, alignItems:'flex-start' }}>
-                      <div style={{ fontSize:14, marginTop:2 }}>{ctLabels[c.contact_type] || '📝'}</div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>{privacy(ypName(c.young_person_id))}{c.professional_involved ? ` · ${c.professional_involved}` : ''}</div>
-                        <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(c.ai_cleaned_notes || c.notes || '').slice(0, 80)}{(c.notes?.length || 0) > 80 ? '...' : ''}</div>
+                    <div key={c.id} onClick={() => setExpandedActivity(expandedActivity === c.id ? null : c.id)} style={{ background:T.white, border:`1px solid ${expandedActivity === c.id ? T.mist : T.border}`, borderRadius:12, padding:'10px 14px', marginBottom:6, cursor:'pointer', transition:'all 0.15s' }}>
+                      <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                        <div style={{ fontSize:14, marginTop:2 }}>{ctLabels[c.contact_type] || '📝'}</div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>{privacy(ypName(c.young_person_id))}{c.professional_involved ? ` · ${c.professional_involved}` : ''}</div>
+                          {expandedActivity !== c.id && <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(c.ai_cleaned_notes || c.notes || '').slice(0, 80)}{(c.notes?.length || 0) > 80 ? '...' : ''}</div>}
+                        </div>
+                        <div style={{ fontSize:10, color:T.muted, transform: expandedActivity === c.id ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}>▼</div>
                       </div>
+                      {expandedActivity === c.id && (
+                        <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${T.border}` }}>
+                          <div style={{ fontSize:12, lineHeight:1.6, color:T.mid, fontWeight:300 }}>{c.ai_cleaned_notes || c.notes || 'No notes'}</div>
+                          <div style={{ display:'flex', gap:8, marginTop:10 }}>
+                            <button onClick={(e) => { e.stopPropagation(); exportAndCopy(formatContactExport(c, ypName(c.young_person_id))) }} style={{ fontSize:11, color:T.sage, background:T.pale, border:`1px solid ${T.mist}`, borderRadius:8, padding:'5px 10px', cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>📋 Copy</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {todaySess.map(s => (
-                    <div key={s.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', gap:10, alignItems:'flex-start' }}>
-                      <div style={{ fontSize:14, marginTop:2 }}>📋</div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>{privacy(ypName(s.young_person_id))} · Session</div>
-                        <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(s.ai_summary || s.notes || '').slice(0, 80)}...</div>
+                    <div key={s.id} onClick={() => setExpandedActivity(expandedActivity === s.id ? null : s.id)} style={{ background:T.white, border:`1px solid ${expandedActivity === s.id ? T.mist : T.border}`, borderRadius:12, padding:'10px 14px', marginBottom:6, cursor:'pointer', transition:'all 0.15s' }}>
+                      <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                        <div style={{ fontSize:14, marginTop:2 }}>📋</div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>{privacy(ypName(s.young_person_id))} · Session</div>
+                          {expandedActivity !== s.id && <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(s.ai_summary || s.notes || '').slice(0, 80)}...</div>}
+                        </div>
+                        <div style={{ fontSize:10, color:T.muted, transform: expandedActivity === s.id ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}>▼</div>
                       </div>
+                      {expandedActivity === s.id && (
+                        <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${T.border}` }}>
+                          {s.ai_summary && <div style={{ fontSize:12, lineHeight:1.6, color:T.mid, fontWeight:300, marginBottom:8 }}>{s.ai_summary}</div>}
+                          {s.notes && <div style={{ fontSize:12, lineHeight:1.6, color:T.mid, fontWeight:300, fontStyle:'italic' }}>{s.notes}</div>}
+                          {s.safeguarding_concern && <div style={{ marginTop:8, padding:'6px 10px', background:T.rosePale, borderRadius:8, fontSize:11, color:T.rose, fontWeight:500 }}>⚑ {s.safeguarding_concern}</div>}
+                          <div style={{ display:'flex', gap:8, marginTop:10 }}>
+                            <button onClick={(e) => { e.stopPropagation(); exportAndCopy(formatSessionExport(s, ypName(s.young_person_id))) }} style={{ fontSize:11, color:T.sage, background:T.pale, border:`1px solid ${T.mist}`, borderRadius:8, padding:'5px 10px', cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>📋 Copy</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </>
@@ -647,12 +705,20 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor, privac
 }
 
 // ── SCREEN: SESSIONS ──
-function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession, privacy = (n) => n }) {
+function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession, onSelectYP, privacy = (n) => n }) {
   const today = new Date().toISOString().split('T')[0]
-  const todaySessions = sessions.filter(s => s.date === today)
-  const recentSessions = sessions.filter(s => s.date !== today).slice(0, 10)
+  const [filterYP, setFilterYP] = useState(null)
 
   const ypName = (id) => youngPeople.find(y => y.id === id)?.name || 'Unknown'
+
+  // Assign a consistent colour to each YP
+  const ypColors = {}
+  const colorPalette = ['#4A7C59','#E8A44A','#3080C0','#C97070','#7060C0','#2D8B6E','#B07820','#5070B0']
+  youngPeople.forEach((yp, i) => { ypColors[yp.id] = colorPalette[i % colorPalette.length] })
+
+  const filtered = filterYP ? sessions.filter(s => s.young_person_id === filterYP) : sessions
+  const todaySessions = filtered.filter(s => s.date === today)
+  const recentSessions = filtered.filter(s => s.date !== today).slice(0, 15)
 
   return (
     <div className="screen active slide-in">
@@ -662,19 +728,28 @@ function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession, privacy
       </div>
       <div className="body-start" />
       <div className="scroll">
+
+        {/* YP filter pills */}
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+          <button onClick={() => setFilterYP(null)} style={{ padding:'5px 12px', borderRadius:20, border:`1.5px solid ${!filterYP ? T.sage : T.border}`, background: !filterYP ? T.pale : 'transparent', color: !filterYP ? T.sage : T.muted, fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>All</button>
+          {youngPeople.map(yp => (
+            <button key={yp.id} onClick={() => setFilterYP(filterYP === yp.id ? null : yp.id)} style={{ padding:'5px 12px', borderRadius:20, border:`1.5px solid ${filterYP === yp.id ? ypColors[yp.id] : T.border}`, background: filterYP === yp.id ? `${ypColors[yp.id]}15` : 'transparent', color: filterYP === yp.id ? ypColors[yp.id] : T.muted, fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>{privacy(yp.name.split(' ')[0])}</button>
+          ))}
+        </div>
+
         {todaySessions.length > 0 && (
           <>
             <div className="sec">Today</div>
             {todaySessions.map(s => (
-              <Card key={s.id} style={{ marginBottom:8, cursor:'pointer' }} onClick={() => onSelectSession(s)}>
+              <Card key={s.id} style={{ marginBottom:8, cursor:'pointer', borderLeft:`3px solid ${ypColors[s.young_person_id] || T.sage}` }} onClick={() => onSelectSession(s)}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:500, color:T.dark }}>{ypName(s.young_person_id)} · Session</div>
+                    <div style={{ fontSize:14, fontWeight:500, color:T.dark }}>{privacy(ypName(s.young_person_id))}</div>
                     <div style={{ fontSize:11, color:T.muted, marginTop:3, fontWeight:300 }}>Today · {s.focus_step}</div>
                   </div>
                   <StageBadge stage={s.focus_step} />
                 </div>
-                {s.ai_summary && <AITag>Prep ready</AITag>}
+                {s.ai_summary && <div style={{ fontSize:11, color:T.mid, fontWeight:300, lineHeight:1.5 }}>{s.ai_summary.slice(0, 100)}...</div>}
               </Card>
             ))}
           </>
@@ -685,11 +760,11 @@ function SessionsScreen({ sessions, youngPeople, onNav, onSelectSession, privacy
           <Card><div style={{ textAlign:'center', padding:'16px 0', color:T.muted, fontSize:13 }}>No sessions logged yet</div></Card>
         )}
         {recentSessions.map(s => (
-          <div key={s.id} className="si">
-            <div className="si-dot">✓</div>
-            <div>
-              <div className="si-date">{ypName(s.young_person_id)} · {s.date}</div>
-              <div className="si-note">"{s.notes?.slice(0, 120) || 'No notes recorded'}{s.notes?.length > 120 ? '...' : ''}"</div>
+          <div key={s.id} onClick={() => { const yp = youngPeople.find(y => y.id === s.young_person_id); if (yp && onSelectYP) { onSelectYP(yp); onNav('profile') } }} style={{ display:'flex', gap:13, marginBottom:14, position:'relative', cursor:'pointer' }}>
+            <div style={{ width:28, height:28, borderRadius:'50%', background:`${ypColors[s.young_person_id]}20`, border:`1.5px solid ${ypColors[s.young_person_id]}40`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:600, color:ypColors[s.young_person_id], flexShrink:0, zIndex:1 }}>{ypName(s.young_person_id)[0]}</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:11, color:T.muted, marginBottom:3, fontWeight:300 }}><span style={{ fontWeight:500, color:ypColors[s.young_person_id] }}>{privacy(ypName(s.young_person_id))}</span> · {s.date}</div>
+              <div style={{ fontSize:12, lineHeight:1.6, color:T.mid, fontStyle:'italic', fontWeight:300 }}>"{s.ai_summary || s.notes?.slice(0, 120) || 'No notes recorded'}{(s.notes?.length || 0) > 120 && !s.ai_summary ? '...' : ''}"</div>
             </div>
           </div>
         ))}
@@ -773,15 +848,14 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
       <div className="scroll">
 
         {/* ── ACTION BUTTONS AT TOP ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
           <button className="btn-p" style={{ margin:0, borderRadius:14, padding:13, fontSize:13 }} onClick={() => onNav('prep')}>✦ Session prep</button>
           <button className="btn-p" style={{ margin:0, borderRadius:14, padding:13, fontSize:13, background:T.deep }} onClick={() => onNav('log')}>📋 Log session</button>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
-          <button className="btn-s" style={{ margin:0, padding:11, fontSize:12 }} onClick={() => onNav('quick-log')}>✎ Quick log</button>
-          <button className="btn-s" style={{ margin:0, padding:11, fontSize:12, display:'flex', alignItems:'center', justifyContent:'center', gap:4 }} onClick={exportPDF}>
-            <span>📄</span> Export PDF
-          </button>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
+          <button className="btn-s" style={{ margin:0, padding:10, fontSize:11 }} onClick={() => onNav('schedule')}>📅 Schedule</button>
+          <button className="btn-s" style={{ margin:0, padding:10, fontSize:11 }} onClick={() => onNav('quick-log')}>✎ Quick log</button>
+          <button className="btn-s" style={{ margin:0, padding:10, fontSize:11, display:'flex', alignItems:'center', justifyContent:'center', gap:3 }} onClick={exportPDF}>📄 PDF</button>
         </div>
 
         {showPrepPrompt && (
@@ -833,7 +907,15 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
           )}
 
           {ypMarkers.length === 0 && !showAddMarker && (
-            <div style={{ fontSize:12, color:T.muted, padding:'4px 0' }}>No risk markers recorded</div>
+            <div style={{ padding:'4px 0' }}>
+              <div style={{ fontSize:12, color:T.muted, marginBottom:8 }}>No risk markers recorded. Tap + Add to track:</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                {markerOptions.slice(0, 6).map(([val, label]) => (
+                  <span key={val} style={{ fontSize:10, color:T.muted, background:T.bg, border:`1px solid ${T.border}`, borderRadius:12, padding:'3px 8px' }}>{label}</span>
+                ))}
+                <span style={{ fontSize:10, color:T.muted, padding:'3px 4px' }}>+{markerOptions.length - 6} more</span>
+              </div>
+            </div>
           )}
           {ypMarkers.map(m => (
             <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:`1px solid ${T.border}` }}>
@@ -854,25 +936,26 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
 
         {/* Contact Log */}
         {ypContacts.length > 0 && (
-          <>
-            <div className="sec">Contact diary</div>
+          <Card style={{ background:'#FAFCFA', borderLeft:`3px solid #E8F4FF` }}>
+            <div className="card-label" style={{ color:'#3080C0' }}>Contact diary · {ypContacts.length} entries</div>
             {ypContacts.slice(0, 6).map(c => (
-              <div key={c.id} className="si">
-                <div className="si-dot" style={{ fontSize:8 }}>{contactTypeLabels[c.contact_type]?.slice(0, 2) || '📝'}</div>
-                <div>
-                  <div className="si-date">{contactTypeLabels[c.contact_type] || c.contact_type} · {c.date}{c.professional_involved ? ` · ${c.professional_involved}` : ''}</div>
-                  <div className="si-note">"{c.ai_cleaned_notes || c.notes?.slice(0, 150) || 'No notes'}{(c.notes?.length || 0) > 150 ? '...' : ''}"</div>
+              <div key={c.id} style={{ display:'flex', gap:10, padding:'8px 0', borderBottom:`1px solid ${T.border}`, alignItems:'flex-start' }}>
+                <div style={{ fontSize:13, marginTop:1 }}>{contactTypeLabels[c.contact_type]?.slice(0, 2) || '📝'}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, fontWeight:500, color:T.dark }}>{c.date}{c.professional_involved ? ` · ${c.professional_involved}` : ''}</div>
+                  <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:2 }}>{(c.ai_cleaned_notes || c.notes || '').slice(0, 120)}{(c.notes?.length || 0) > 120 ? '...' : ''}</div>
                 </div>
               </div>
             ))}
-          </>
+          </Card>
         )}
 
-        <div className="sec">Session history</div>
-        {ypSessions.length === 0 && (
-          <Card><div style={{ textAlign:'center', padding:'12px 0', color:T.muted, fontSize:13 }}>No sessions yet</div></Card>
-        )}
-        {ypSessions.slice(0, 8).map((s, i) => (
+        <Card style={{ borderLeft:`3px solid ${T.sage}` }}>
+          <div className="card-label">Session history · {ypSessions.length} sessions</div>
+          {ypSessions.length === 0 && (
+            <div style={{ textAlign:'center', padding:'12px 0', color:T.muted, fontSize:13 }}>No sessions yet</div>
+          )}
+          {ypSessions.slice(0, 8).map((s, i) => (
           <div key={s.id} className="si">
             <div className="si-dot">{ypSessions.length - i}</div>
             <div>
@@ -881,6 +964,24 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
             </div>
           </div>
         ))}
+        </Card>
+
+        {/* Safeguarding concerns for this YP */}
+        {(() => {
+          const ypSG = ypSessions.filter(s => s.safeguarding_concern?.trim())
+          if (ypSG.length === 0) return null
+          return (
+            <Card style={{ borderLeft:`3px solid ${T.rose}` }}>
+              <div className="card-label" style={{ color:T.rose }}>Safeguarding · {ypSG.length} concern{ypSG.length !== 1 ? 's' : ''}</div>
+              {ypSG.map(s => (
+                <div key={s.id} style={{ padding:'8px 0', borderBottom:`1px solid #EDCACA` }}>
+                  <div style={{ fontSize:11, fontWeight:500, color:'#8B3A3A', marginBottom:3 }}>{s.date}</div>
+                  <div style={{ fontSize:12, color:'#A05050', lineHeight:1.5, fontWeight:300 }}>{s.safeguarding_concern}</div>
+                </div>
+              ))}
+            </Card>
+          )
+        })()}
 
         <button className="btn-s" style={{ color:T.muted, borderColor:T.border }} onClick={() => exportAndCopy(formatYPExport(yp, sessions, contactLogs, riskMarkers))}>📋 Copy full record to clipboard</button>
       </div>
@@ -1049,6 +1150,7 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
       return
     }
     if (recording) {
+      window._tendRecordingActive = false
       window._tendRecognition?.stop()
       setRecording(false)
       return
@@ -1070,10 +1172,18 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
         }
       }
     }
-    recognition.onerror = () => setRecording(false)
-    recognition.onend = () => setRecording(false)
+    recognition.onerror = (e) => { if (e.error !== 'no-speech') setRecording(false) }
+    recognition.onend = () => {
+      // Auto-restart if still in recording mode (browser stops after ~60s)
+      if (window._tendRecordingActive) {
+        try { recognition.start() } catch(e) { setRecording(false); window._tendRecordingActive = false }
+      } else {
+        setRecording(false)
+      }
+    }
     recognition.start()
     window._tendRecognition = recognition
+    window._tendRecordingActive = true
     setRecording(true)
   }
 
@@ -1142,8 +1252,8 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
       <div className="body-start" />
       <div className="scroll">
 
-        {/* YP Selector */}
-        {youngPeople.length > 1 && (
+        {/* YP Selector — only when not pre-selected from a profile */}
+        {!initialYP && youngPeople.length > 1 && (
           <Card>
             <div className="inp-label">Who is this session with?</div>
             <select value={yp.id} onChange={e => handleYPChange(e.target.value)} style={{ width:'100%', background:T.bg, border:`1px solid ${T.border}`, borderRadius:12, padding:'12px 14px', fontSize:13, color:T.dark, fontFamily:"'Outfit',sans-serif", fontWeight:400, outline:'none', cursor:'pointer', appearance:'none', backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%238FAA96' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`, backgroundRepeat:'no-repeat', backgroundPosition:'right 14px center' }}>
@@ -1265,7 +1375,7 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
       alert('Voice recording is not supported in this browser. Please use Chrome.')
       return
     }
-    if (recording) { window._tendRecognition?.stop(); setRecording(false); return }
+    if (recording) { window._tendRecordingActive = false; window._tendRecognition?.stop(); setRecording(false); return }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     const recognition = new SpeechRecognition()
     recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-GB'
@@ -1278,10 +1388,15 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
         }
       }
     }
-    recognition.onerror = () => setRecording(false)
-    recognition.onend = () => setRecording(false)
+    recognition.onerror = (e) => { if (e.error !== 'no-speech') setRecording(false) }
+    recognition.onend = () => {
+      if (window._tendRecordingActive) {
+        try { recognition.start() } catch(e) { setRecording(false); window._tendRecordingActive = false }
+      } else { setRecording(false) }
+    }
     recognition.start()
     window._tendRecognition = recognition
+    window._tendRecordingActive = true
     setRecording(true)
   }
 
@@ -1782,6 +1897,86 @@ function SafeguardingScreen({ sessions, youngPeople, onBack, privacy = (n) => n 
 }
 
 
+// ── SCREEN: SCHEDULE SESSION ──
+function ScheduleScreen({ yp, youngPeople, orgId, mentor, onDone, onBack, privacy = (n) => n }) {
+  const [selectedYP, setSelectedYP] = useState(yp?.id || '')
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [location, setLocation] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    if (!selectedYP || !date) return
+    setSaving(true)
+    try {
+      await fetch('/api/scheduled-sessions', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          org_id: orgId,
+          young_person_id: selectedYP,
+          mentor_id: mentor?.id === 'demo' ? null : mentor?.id,
+          date,
+          time: time || null,
+          location: location.trim() || null,
+          notes: notes.trim() || null,
+        })
+      })
+      setSaved(true)
+    } catch(e) {}
+    setSaving(false)
+  }
+
+  if (saved) return (
+    <div className="screen active" style={{ alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center', padding:40 }}>
+        <div style={{ width:56, height:56, borderRadius:'50%', background:T.pale, border:`1.5px solid ${T.mist}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22, color:T.sage }}>📅</div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.dark, marginBottom:6 }}>Session scheduled</div>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:20 }}>{date}{time ? ` at ${time}` : ''}</div>
+        <button onClick={onDone} className="btn-p" style={{ maxWidth:260, margin:'0 auto' }}>Done →</button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="screen active slide-in">
+      <button className="back" onClick={onBack}>← Back</button>
+      <div className="sh">
+        <div className="sh-eye">Schedule</div>
+        <div className="sh-title">Book a <em>session</em></div>
+      </div>
+      <div className="body-start" />
+      <div className="scroll">
+        <Card>
+          <div className="inp-label">Young person *</div>
+          <select value={selectedYP} onChange={e => setSelectedYP(e.target.value)} style={{ width:'100%', background:T.bg, border:`1px solid ${T.border}`, borderRadius:12, padding:'12px 14px', fontSize:13, color:T.dark, fontFamily:"'Outfit',sans-serif", fontWeight:400, outline:'none', cursor:'pointer', marginBottom:10, appearance:'none', backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%238FAA96' stroke-width='1.5' fill='none'/%3E%3C/svg%3E")`, backgroundRepeat:'no-repeat', backgroundPosition:'right 14px center' }}>
+            <option value="">Select...</option>
+            {youngPeople.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+          </select>
+
+          <div className="inp-label">Date *</div>
+          <input className="inp" type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} />
+
+          <div className="inp-label">Time</div>
+          <input className="inp" type="time" value={time} onChange={e => setTime(e.target.value)} />
+
+          <div className="inp-label">Location</div>
+          <input className="inp" type="text" placeholder="e.g. School, office, home visit, park" value={location} onChange={e => setLocation(e.target.value)} />
+
+          <div className="inp-label">Notes</div>
+          <textarea className="inp" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything to remember for this session..." />
+        </Card>
+
+        <button className="btn-p" onClick={save} disabled={saving || !selectedYP || !date} style={{ opacity: !selectedYP || !date || saving ? 0.5 : 1 }}>
+          {saving ? 'Scheduling...' : 'Schedule session →'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
 // ── SCREEN: SETTINGS ──
 function SettingsScreen({ mentor, onBack, onUpdateMentor, onSignOut }) {
   const [name, setName] = useState(mentor?.name || '')
@@ -1936,6 +2131,7 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState([])
   const [contactLogs, setContactLogs] = useState([])
   const [riskMarkers, setRiskMarkers] = useState([])
+  const [scheduledSessions, setScheduledSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [screen, setScreen] = useState('home')
   const [selectedYP, setSelectedYP] = useState(null)
@@ -1951,14 +2147,16 @@ export default function Dashboard() {
 
   const refreshData = async (useOrgId) => {
     const oid = useOrgId || orgId
-    const [ypRes, sessRes, clRes] = await Promise.all([
+    const [ypRes, sessRes, clRes, schRes] = await Promise.all([
       fetch(`/api/young-people?orgId=${oid}`),
       fetch(`/api/sessions?orgId=${oid}`),
       fetch(`/api/contact-logs?orgId=${oid}`).catch(() => ({ json: async () => [] })),
+      fetch(`/api/scheduled-sessions?orgId=${oid}`).catch(() => ({ json: async () => [] })),
     ])
     setYP(await ypRes.json())
     setSessions(await sessRes.json())
     try { setContactLogs(await clRes.json()) } catch(e) { setContactLogs([]) }
+    try { setScheduledSessions(await schRes.json()) } catch(e) { setScheduledSessions([]) }
   }
 
   useEffect(() => {
@@ -1970,16 +2168,18 @@ export default function Dashboard() {
       if (isDemo) {
         // Demo mode — skip auth, load demo org data directly
         const demoOrgId = '00000000-0000-0000-0000-000000000001'
-        const [ypRes, sessRes, clRes] = await Promise.all([
+        const [ypRes, sessRes, clRes, schRes] = await Promise.all([
           fetch(`/api/young-people?orgId=${demoOrgId}`),
           fetch(`/api/sessions?orgId=${demoOrgId}`),
           fetch(`/api/contact-logs?orgId=${demoOrgId}`).catch(() => ({ json: async () => [] })),
+          fetch(`/api/scheduled-sessions?orgId=${demoOrgId}`).catch(() => ({ json: async () => [] })),
         ])
         setMentor({ name: 'Jordan Clarke', id: 'demo', email: 'jordan@riverside.org.uk', org_id: demoOrgId, role: 'admin', work_context: 'youth_mentoring', organisations: { name: 'Riverside Youth Trust' } })
         const ypData = await ypRes.json()
         setYP(ypData)
         setSessions(await sessRes.json())
         try { setContactLogs(await clRes.json()) } catch(e) { setContactLogs([]) }
+        try { setScheduledSessions(await schRes.json()) } catch(e) { setScheduledSessions([]) }
         // Load risk markers for all YPs
         const allMarkers = []
         for (const yp of ypData) {
@@ -2289,7 +2489,7 @@ export default function Dashboard() {
 
       {screen === 'home' && (
         <div style={{ position:'relative' }}>
-          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} privacy={pn} contactLogs={contactLogs} />
+          <HomeScreen mentor={mentor} youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} onSelectSession={setSelectedSession} privacy={pn} contactLogs={contactLogs} scheduledSessions={scheduledSessions} />
           <div style={{ position:'fixed', top:22, right:18, display:'flex', gap:8, zIndex:50 }}>
             {/* Privacy toggle */}
             <div onClick={() => setPrivacyMode(!privacyMode)} style={{ cursor:'pointer', padding:8, borderRadius:'50%', background: privacyMode ? T.sage : 'rgba(255,255,255,0.8)', backdropFilter:'blur(8px)', transition:'all 0.2s' }} title={privacyMode ? 'Show names' : 'Hide names'}>
@@ -2319,19 +2519,20 @@ export default function Dashboard() {
         </div>
       )}
       {screen === 'people' && <PeopleScreen youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} mentor={mentor} privacy={pn} />}
-      {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} privacy={pn} />}
+      {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} onSelectYP={onSelectYP} privacy={pn} />}
       {screen === 'insights' && <InsightsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} />}
       {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} privacy={pn} contactLogs={contactLogs} riskMarkers={riskMarkers} onRefresh={() => refreshData()} />}
       {screen === 'prep' && <PrepScreen yp={selectedYP || youngPeople[0]} sessions={sessions} mentor={mentor} onNav={nav} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} privacy={pn} />}
       {screen === 'log' && <LogScreen yp={logYP} sessions={sessions} mentor={mentor} orgId={orgId} onDone={onDoneLog} onBack={() => setScreen('home')} privacy={pn} youngPeople={youngPeople} />}
       {screen === 'quick-log' && <QuickLogScreen youngPeople={youngPeople} mentor={mentor} orgId={orgId} onDone={async () => { await refreshData(); setScreen('home') }} onBack={() => setScreen('home')} privacy={pn} />}
       {screen === 'add-yp' && <AddYPScreen orgId={orgId} onDone={onDoneAddYP} onBack={() => setScreen('people')} />}
+      {screen === 'schedule' && <ScheduleScreen yp={selectedYP} youngPeople={youngPeople} orgId={orgId} mentor={mentor} onDone={async () => { await refreshData(); setScreen('home') }} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} privacy={pn} />}
       {screen === 'report' && <ReportScreen sessions={sessions} youngPeople={youngPeople} mentor={mentor} onBack={() => setScreen('home')} />}
       {screen === 'safeguarding' && <SafeguardingScreen sessions={sessions} youngPeople={youngPeople} onBack={() => setScreen('home')} privacy={pn} />}
       {screen === 'settings' && <SettingsScreen mentor={mentor} onBack={() => setScreen('home')} onUpdateMentor={onUpdateMentor} onSignOut={onSignOut} />}
 
-      {/* Floating Quick Log button — visible on people, sessions, insights, profile */}
-      {['people','sessions','insights','profile'].includes(screen) && (
+      {/* Floating Quick Log button — visible on all main screens */}
+      {['home','people','sessions','insights','profile'].includes(screen) && (
         <div onClick={() => nav('quick-log')} style={{ position:'fixed', bottom: 90, right: 20, width:52, height:52, borderRadius:'50%', background:T.forest, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 4px 16px rgba(28,44,34,0.25)', zIndex:99, transition:'transform 0.2s' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M12 5V19M5 12H19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
