@@ -457,17 +457,17 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
               <div style={{ color:'rgba(255,255,255,0.4)', fontSize:16 }}>→</div>
             </div>
 
-            <div className="today-hero" onClick={() => setHeroExpanded(!heroExpanded)} style={{ cursor:'pointer' }}>
-              <div>
+            <div className="today-hero" style={{ cursor:'pointer' }}>
+              <div onClick={() => setHeroExpanded(!heroExpanded)}>
                 <div className="th-count">{youngPeople.length}</div>
                 <div className="th-label">in your caseload</div>
               </div>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
                 {(heroExpanded ? youngPeople : youngPeople.slice(0,3)).map(yp => (
-                  <div key={yp.id} className="th-chip">{privacy(yp.name)}</div>
+                  <div key={yp.id} className="th-chip" onClick={() => { onSelectYP(yp); onNav('profile') }} style={{ cursor:'pointer' }}>{privacy(yp.name)}</div>
                 ))}
-                {!heroExpanded && youngPeople.length > 3 && <div className="th-chip" style={{ cursor:'pointer' }}>+{youngPeople.length - 3} more ▾</div>}
-                {heroExpanded && youngPeople.length > 3 && <div className="th-chip" style={{ cursor:'pointer', opacity:0.6 }}>Show less ▴</div>}
+                {!heroExpanded && youngPeople.length > 3 && <div className="th-chip" onClick={() => setHeroExpanded(true)} style={{ cursor:'pointer' }}>+{youngPeople.length - 3} more ▾</div>}
+                {heroExpanded && youngPeople.length > 3 && <div className="th-chip" onClick={() => setHeroExpanded(false)} style={{ cursor:'pointer', opacity:0.6 }}>Show less ▴</div>}
               </div>
             </div>
 
@@ -754,8 +754,9 @@ function DiaryScreen({ sessions, contactLogs, youngPeople, onNav, privacy = (n) 
           <button onClick={() => shiftDay(1)} disabled={viewDate >= today} style={{ width:36, height:36, borderRadius:10, background:T.white, border:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:14, color: viewDate >= today ? T.border : T.muted, opacity: viewDate >= today ? 0.5 : 1 }}>→</button>
         </div>
         <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12 }} onClick={() => onNav('quick-log')}>✎ Log contact</button>
-          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12, background:T.deep }} onClick={() => onNav('log')}>📋 Log session</button>
+          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12 }} onClick={() => onNav('quick-log')}>✎ Contact</button>
+          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12, background:T.deep }} onClick={() => onNav('log')}>📋 Session</button>
+          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12, background:T.amber }} onClick={() => onNav('schedule')}>📅 Schedule</button>
         </div>
         {allEntries.length === 0 && (
           <Card><div style={{ textAlign:'center', padding:'24px 0', color:T.muted, fontSize:13 }}>No entries for {dateLabel.toLowerCase()}</div></Card>
@@ -887,6 +888,7 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
   const [showAddMarker, setShowAddMarker] = useState(false)
   const [newMarkerType, setNewMarkerType] = useState('police_contact')
   const [newMarkerDate, setNewMarkerDate] = useState(new Date().toISOString().split('T')[0])
+  const [newMarkerTime, setNewMarkerTime] = useState('')
   const [newMarkerNotes, setNewMarkerNotes] = useState('')
   const [savingMarker, setSavingMarker] = useState(false)
 
@@ -906,9 +908,9 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
     try {
       await fetch('/api/risk-markers', {
         method:'POST', headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ young_person_id: yp.id, marker_type: newMarkerType, last_date: newMarkerDate || null, notes: newMarkerNotes.trim() || null, status: 'active', updated_at: new Date().toISOString() })
+        body: JSON.stringify({ young_person_id: yp.id, marker_type: newMarkerType, last_date: newMarkerDate || null, last_time: newMarkerTime || null, notes: newMarkerNotes.trim() || null, status: 'active', updated_at: new Date().toISOString() })
       })
-      setShowAddMarker(false); setNewMarkerNotes(''); setNewMarkerDate(new Date().toISOString().split('T')[0])
+      setShowAddMarker(false); setNewMarkerNotes(''); setNewMarkerTime(''); setNewMarkerDate(new Date().toISOString().split('T')[0])
       if (onRefresh) onRefresh()
     } catch(e) {}
     setSavingMarker(false)
@@ -997,8 +999,16 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
               <select value={newMarkerType} onChange={e => setNewMarkerType(e.target.value)} style={{ width:'100%', background:T.bg, border:`1px solid ${T.border}`, borderRadius:12, padding:'10px 14px', fontSize:12, color:T.dark, fontFamily:"'Outfit',sans-serif", fontWeight:400, outline:'none', marginBottom:8 }}>
                 {markerOptions.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
               </select>
-              <div className="inp-label">Date</div>
-              <input className="inp" type="date" value={newMarkerDate} onChange={e => setNewMarkerDate(e.target.value)} />
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                <div>
+                  <div className="inp-label" style={{ fontSize:8 }}>Date</div>
+                  <input className="inp" type="date" value={newMarkerDate} onChange={e => setNewMarkerDate(e.target.value)} style={{ marginBottom:0 }} />
+                </div>
+                <div>
+                  <div className="inp-label" style={{ fontSize:8 }}>Time <span style={{ fontWeight:300, textTransform:'none', letterSpacing:0 }}>· optional</span></div>
+                  <input className="inp" type="time" value={newMarkerTime} onChange={e => setNewMarkerTime(e.target.value)} style={{ marginBottom:0 }} />
+                </div>
+              </div>
               <div className="inp-label">Notes</div>
               <textarea className="inp" rows={2} value={newMarkerNotes} onChange={e => setNewMarkerNotes(e.target.value)} placeholder="Brief description..." />
               <button onClick={saveMarker} disabled={savingMarker} className="btn-p" style={{ fontSize:13, padding:11 }}>
@@ -1032,7 +1042,7 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
                 </div>
               </div>
               <div style={{ textAlign:'right', flexShrink:0, marginLeft:12 }}>
-                <div style={{ fontSize:11, fontWeight:500, color: m.status === 'active' ? T.rose : T.muted }}>{m.last_date || '—'}</div>
+                <div style={{ fontSize:11, fontWeight:500, color: m.status === 'active' ? T.rose : T.muted }}>{m.last_date || '—'}{m.last_time ? ` ${m.last_time}` : ''}</div>
                 <span style={{ fontSize:9, fontWeight:600, padding:'2px 8px', borderRadius:20, background: m.status === 'active' ? T.rosePale : T.pale, color: m.status === 'active' ? T.rose : T.sage, textTransform:'uppercase', letterSpacing:'0.06em' }}>{m.status}</span>
               </div>
             </div>
@@ -1272,11 +1282,11 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
           finalTranscript += (finalTranscript ? ' ' : '') + event.results[i][0].transcript
-          setNotes(finalTranscript)
         } else {
           interim += event.results[i][0].transcript
         }
       }
+      setNotes(finalTranscript + (interim ? (finalTranscript ? ' ' : '') + interim : ''))
     }
     recognition.onerror = (e) => { if (e.error !== 'no-speech') setRecording(false) }
     recognition.onend = () => {
@@ -1403,9 +1413,9 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
           </div>
           <textarea className="inp" rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder={`Write or speak freely — what happened in the room today? Tend will help structure this...`} />
           <div style={{ display:'flex', gap:8 }}>
-            <div className="ai-tag" style={{ cursor:'pointer', flex:1 }} onClick={generateSummary}>
-              <PulseDot /> {generating ? 'Generating summary...' : 'Generate AI summary'}
-            </div>
+            <button onClick={generateSummary} disabled={generating} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 14px', background:T.pale, border:`1.5px solid ${T.mist}`, borderRadius:12, cursor: generating ? 'wait' : 'pointer', fontFamily:"'Outfit',sans-serif", fontSize:12, fontWeight:500, color:T.sage, transition:'all 0.15s' }}>
+              <PulseDot /> {generating ? 'Generating summary...' : '✦ Generate AI summary'}
+            </button>
           </div>
           {generating && <div style={{ marginTop:8 }}><Spinner /></div>}
           {aiSummary && (
@@ -1465,6 +1475,7 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
   const [cleaning, setCleaning] = useState(false)
   const [cleanedNotes, setCleanedNotes] = useState(null)
   const [contactDate, setContactDate] = useState(new Date().toISOString().split('T')[0])
+  const [contactTime, setContactTime] = useState('')
   const [attendance, setAttendance] = useState('')
   const [outcome, setOutcome] = useState('')
 
@@ -1489,12 +1500,15 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
     recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-GB'
     let finalTranscript = notes
     recognition.onresult = (event) => {
+      let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
           finalTranscript += (finalTranscript ? ' ' : '') + event.results[i][0].transcript
-          setNotes(finalTranscript)
+        } else {
+          interim += event.results[i][0].transcript
         }
       }
+      setNotes(finalTranscript + (interim ? (finalTranscript ? ' ' : '') + interim : ''))
     }
     recognition.onerror = (e) => { if (e.error !== 'no-speech') setRecording(false) }
     recognition.onend = () => {
@@ -1577,10 +1591,18 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
       <div className="body-start" />
       <div className="scroll">
 
-        {/* Date picker */}
+        {/* Date & Time */}
         <Card>
-          <div className="inp-label">Date</div>
-          <input className="inp" type="date" value={contactDate} onChange={e => setContactDate(e.target.value)} />
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            <div>
+              <div className="inp-label">Date</div>
+              <input className="inp" type="date" value={contactDate} onChange={e => setContactDate(e.target.value)} style={{ marginBottom:0 }} />
+            </div>
+            <div>
+              <div className="inp-label">Time</div>
+              <input className="inp" type="time" value={contactTime} onChange={e => setContactTime(e.target.value)} style={{ marginBottom:0 }} />
+            </div>
+          </div>
         </Card>
 
         {/* Contact type */}
@@ -1658,9 +1680,9 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
 
           {notes.trim().length > 30 && (
             <div style={{ display:'flex', gap:8 }}>
-              <div className="ai-tag" style={{ cursor:'pointer', flex:1 }} onClick={cleanUp}>
-                <PulseDot /> {cleaning ? 'Cleaning up...' : 'AI clean-up'}
-              </div>
+              <button onClick={cleanUp} disabled={cleaning} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 14px', background:T.pale, border:`1.5px solid ${T.mist}`, borderRadius:12, cursor: cleaning ? 'wait' : 'pointer', fontFamily:"'Outfit',sans-serif", fontSize:12, fontWeight:500, color:T.sage, transition:'all 0.15s' }}>
+                <PulseDot /> {cleaning ? 'Cleaning up...' : '✦ AI clean-up'}
+              </button>
             </div>
           )}
           {cleaning && <div style={{ marginTop:8 }}><Spinner /></div>}
@@ -1772,6 +1794,38 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack, riskMarkers = [],
   const [generated, setGenerated] = useState(false)
   const [error, setError] = useState(null)
 
+  // Date range — default to current quarter
+  const now = new Date()
+  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+  const [dateFrom, setDateFrom] = useState(qStart.toISOString().split('T')[0])
+  const [dateTo, setDateTo] = useState(now.toISOString().split('T')[0])
+
+  // Quick presets
+  const setPreset = (key) => {
+    const today = new Date()
+    if (key === 'q') {
+      const qs = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1)
+      setDateFrom(qs.toISOString().split('T')[0])
+      setDateTo(today.toISOString().split('T')[0])
+    } else if (key === 'lastq') {
+      const qs = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3 - 3, 1)
+      const qe = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 0)
+      setDateFrom(qs.toISOString().split('T')[0])
+      setDateTo(qe.toISOString().split('T')[0])
+    } else if (key === '30') {
+      const d = new Date(today); d.setDate(d.getDate() - 30)
+      setDateFrom(d.toISOString().split('T')[0])
+      setDateTo(today.toISOString().split('T')[0])
+    } else if (key === 'all') {
+      setDateFrom('2020-01-01')
+      setDateTo(today.toISOString().split('T')[0])
+    }
+  }
+
+  // Filter data by date range
+  const filteredSessions = sessions.filter(s => s.date >= dateFrom && s.date <= dateTo)
+  const filteredContacts = contactLogs.filter(c => c.date >= dateFrom && c.date <= dateTo)
+
   const generate = async () => {
     setLoading(true)
     setError(null)
@@ -1782,8 +1836,10 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack, riskMarkers = [],
         method:'POST', headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({
           orgName: mentor?.organisations?.name,
-          sessions: sessions.slice(0, 50),
+          sessions: filteredSessions.slice(0, 50),
           youngPeople,
+          dateFrom,
+          dateTo,
         }),
         signal: controller.signal,
       })
@@ -1801,20 +1857,20 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack, riskMarkers = [],
     setLoading(false)
   }
 
-  const totalSessions = sessions.length
-  const uniqueYP = [...new Set(sessions.map(s => s.young_person_id))].length
-  const totalContacts = contactLogs.length
-  const sgCount = sessions.filter(s => s.safeguarding_concern?.trim()).length
-  const highlightSessions = sessions.filter(s => s.is_highlight)
+  const totalSessions = filteredSessions.length
+  const uniqueYP = [...new Set(filteredSessions.map(s => s.young_person_id))].length
+  const totalContacts = filteredContacts.length
+  const sgCount = filteredSessions.filter(s => s.safeguarding_concern?.trim()).length
+  const highlightSessions = filteredSessions.filter(s => s.is_highlight)
 
-  // Funder per-YP stats
+  // Funder per-YP stats (filtered by date range)
   const funderStats = youngPeople.map(yp => {
-    const ypSess = sessions.filter(s => s.young_person_id === yp.id)
+    const ypSess = filteredSessions.filter(s => s.young_person_id === yp.id)
     const ypMarkers = riskMarkers.filter(m => m.young_person_id === yp.id)
-    const ypContacts = contactLogs.filter(c => c.young_person_id === yp.id)
+    const ypContacts = filteredContacts.filter(c => c.young_person_id === yp.id)
     const lastArrest = ypMarkers.find(m => m.marker_type === 'arrested')
-    const stage = ypSess[0]?.focus_step || 'Early'
-    const engaged = ypContacts.some(c => (Date.now() - new Date(c.date)) < 30 * 86400000) || ypSess.some(s => (Date.now() - new Date(s.date)) < 30 * 86400000)
+    const stage = ypSess[0]?.focus_step || sessions.filter(s => s.young_person_id === yp.id)[0]?.focus_step || 'Early'
+    const engaged = ypContacts.length > 0 || ypSess.length > 0
     return { name: yp.name, sessions: ypSess.length, contacts: ypContacts.length, stage, engaged, lastArrest: lastArrest?.last_date || '—' }
   })
 
@@ -1839,6 +1895,33 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack, riskMarkers = [],
           <div className="rh-title">{mentor?.organisations?.name || 'Your Organisation'}</div>
           <div className="rh-sub">{totalSessions} sessions · {totalContacts} contacts · {uniqueYP} young people</div>
         </div>
+
+        {/* Date range picker */}
+        <Card>
+          <div className="card-label">Reporting period</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+            {[
+              { key:'q', label:'This quarter' },
+              { key:'lastq', label:'Last quarter' },
+              { key:'30', label:'Last 30 days' },
+              { key:'all', label:'All time' },
+            ].map(p => (
+              <button key={p.key} onClick={() => setPreset(p.key)} style={{ padding:'5px 12px', borderRadius:20, border:`1.5px solid ${T.border}`, background:'transparent', color:T.muted, fontSize:11, fontWeight:500, cursor:'pointer', fontFamily:"'Outfit',sans-serif" }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            <div>
+              <div className="inp-label" style={{ fontSize:8 }}>From</div>
+              <input className="inp" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ marginBottom:0 }} />
+            </div>
+            <div>
+              <div className="inp-label" style={{ fontSize:8 }}>To</div>
+              <input className="inp" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ marginBottom:0 }} />
+            </div>
+          </div>
+        </Card>
 
         {/* Funder summary data table */}
         <Card>
@@ -1931,7 +2014,7 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack, riskMarkers = [],
         <Card>
           <div className="card-label">Cohort progress</div>
           {INDICATORS.map(ind => {
-            const vals = sessions.map(s => s.indicators?.[ind.key]).filter(Boolean)
+            const vals = filteredSessions.map(s => s.indicators?.[ind.key]).filter(Boolean)
             const avg = vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : null
             return <ScoreBar key={ind.key} label={ind.label} value={avg} color={ind.color} />
           })}
