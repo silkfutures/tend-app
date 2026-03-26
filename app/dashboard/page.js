@@ -232,7 +232,7 @@ function BottomNav({ active, onNav }) {
   const items = [
     { id:'home', label:'Home', icon: <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><path d="M3 9L11 3L19 9V19H14V14H8V19H3V9Z" stroke={active==='home'?T.sage:'#8FAA96'} strokeWidth="1.7" strokeLinejoin="round"/></svg> },
     { id:'people', label:'People', icon: <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="8" cy="8" r="3.5" stroke={active==='people'?T.sage:'#8FAA96'} strokeWidth="1.7"/><path d="M2 19C2 16.2 4.7 14 8 14" stroke={active==='people'?T.sage:'#8FAA96'} strokeWidth="1.7" strokeLinecap="round"/><circle cx="15" cy="10" r="3" stroke={active==='people'?T.sage:'#8FAA96'} strokeWidth="1.7"/><path d="M12 19C12 16.8 13.3 15 15 15C16.7 15 18 16.8 18 19" stroke={active==='people'?T.sage:'#8FAA96'} strokeWidth="1.7" strokeLinecap="round"/></svg> },
-    { id:'sessions', label:'Sessions', icon: <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke={active==='sessions'?T.sage:'#8FAA96'} strokeWidth="1.7"/><path d="M7 3V7M15 3V7M3 10H19" stroke={active==='sessions'?T.sage:'#8FAA96'} strokeWidth="1.7" strokeLinecap="round"/></svg> },
+    { id:'diary', label:'Diary', icon: <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke={active==='diary'?T.sage:'#8FAA96'} strokeWidth="1.7"/><path d="M7 3V7M15 3V7M3 10H19" stroke={active==='diary'?T.sage:'#8FAA96'} strokeWidth="1.7" strokeLinecap="round"/></svg> },
     { id:'insights', label:'Insights', icon: <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><path d="M11 3C11 3 5 6.5 5 12C5 15.3 7.7 18 11 18C14.3 18 17 15.3 17 12C17 6.5 11 3 11 3Z" stroke={active==='insights'?T.sage:'#8FAA96'} strokeWidth="1.7" strokeLinejoin="round"/></svg> },
   ]
   return (
@@ -447,6 +447,16 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
 
         {youngPeople.length > 0 && (
           <>
+            {/* Primary action: Log a contact — the thing VPU practitioners do 10-15x a day */}
+            <div onClick={() => onNav('quick-log')} style={{ background:'linear-gradient(135deg,#4A7C59 0%,#2D4A3E 100%)', borderRadius:18, padding:'16px 18px', marginBottom:10, cursor:'pointer', display:'flex', alignItems:'center', gap:14 }}>
+              <div style={{ width:42, height:42, borderRadius:12, background:'rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>✎</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:500, color:'white', marginBottom:2 }}>Log a contact</div>
+                <div style={{ fontSize:11, fontWeight:300, color:'rgba(255,255,255,0.55)' }}>Call, text, visit, meeting, or note</div>
+              </div>
+              <div style={{ color:'rgba(255,255,255,0.4)', fontSize:16 }}>→</div>
+            </div>
+
             <div className="today-hero" onClick={() => setHeroExpanded(!heroExpanded)} style={{ cursor:'pointer' }}>
               <div>
                 <div className="th-count">{youngPeople.length}</div>
@@ -616,10 +626,10 @@ function HomeScreen({ mentor, youngPeople, sessions, onNav, onSelectYP, onSelect
                 <div className="qt">Impact Report</div>
                 <div className="qs">AI generated</div>
               </div>
-              <div className="qbtn" onClick={() => onNav('sessions')}>
-                <div className="qi" style={{ background:T.rosePale }}>📅</div>
-                <div className="qt">Sessions</div>
-                <div className="qs">View all logs</div>
+              <div className="qbtn" onClick={() => onNav('diary')}>
+                <div className="qi" style={{ background:'#E8F4FF' }}>📅</div>
+                <div className="qt">Daily Diary</div>
+                <div className="qs">Full day view</div>
               </div>
             </div>
 
@@ -700,6 +710,97 @@ function PeopleScreen({ youngPeople, sessions, onNav, onSelectYP, mentor, privac
         )}
       </div>
       <BottomNav active="people" onNav={onNav} />
+    </div>
+  )
+}
+
+// ── SCREEN: DAILY DIARY ──
+function DiaryScreen({ sessions, contactLogs, youngPeople, onNav, privacy = (n) => n }) {
+  const today = new Date().toISOString().split('T')[0]
+  const [viewDate, setViewDate] = useState(today)
+  const [expandedId, setExpandedId] = useState(null)
+
+  const ypName = (id) => youngPeople.find(y => y.id === id)?.name || 'General'
+  const ctIcons = { call:'📞', text:'💬', visit:'🏠', meeting:'👥', email:'📧', professional_contact:'🔗', note:'📝' }
+  const ctLabels = { call:'Phone call', text:'Text/message', visit:'Home visit', meeting:'Meeting', email:'Email', professional_contact:'Professional contact', note:'Note' }
+
+  const dayContacts = contactLogs.filter(c => c.date === viewDate)
+  const daySessions = sessions.filter(s => s.date === viewDate)
+  const allEntries = [
+    ...dayContacts.map(c => ({ ...c, _type: 'contact', _sortTime: c.created_at || c.date })),
+    ...daySessions.map(s => ({ ...s, _type: 'session', _sortTime: s.created_at || s.date })),
+  ].sort((a, b) => new Date(b._sortTime) - new Date(a._sortTime))
+
+  const isToday = viewDate === today
+  const dateLabel = isToday ? 'Today' : new Date(viewDate + 'T00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })
+
+  const shiftDay = (delta) => {
+    const d = new Date(viewDate + 'T00:00')
+    d.setDate(d.getDate() + delta)
+    setViewDate(d.toISOString().split('T')[0])
+  }
+
+  return (
+    <div className="screen active slide-in">
+      <div className="sh">
+        <div className="sh-eye">Daily diary</div>
+        <div className="sh-title"><em>{dateLabel}</em> · {allEntries.length} entries</div>
+      </div>
+      <div className="body-start" />
+      <div className="scroll">
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+          <button onClick={() => shiftDay(-1)} style={{ width:36, height:36, borderRadius:10, background:T.white, border:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:14, color:T.muted }}>←</button>
+          <input type="date" value={viewDate} onChange={e => setViewDate(e.target.value)} style={{ flex:1, background:T.white, border:`1px solid ${T.border}`, borderRadius:10, padding:'8px 12px', fontSize:12, color:T.dark, fontFamily:"'Outfit',sans-serif", outline:'none', textAlign:'center' }} />
+          <button onClick={() => shiftDay(1)} disabled={viewDate >= today} style={{ width:36, height:36, borderRadius:10, background:T.white, border:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:14, color: viewDate >= today ? T.border : T.muted, opacity: viewDate >= today ? 0.5 : 1 }}>→</button>
+        </div>
+        <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12 }} onClick={() => onNav('quick-log')}>✎ Log contact</button>
+          <button className="btn-p" style={{ flex:1, margin:0, borderRadius:12, padding:12, fontSize:12, background:T.deep }} onClick={() => onNav('log')}>📋 Log session</button>
+        </div>
+        {allEntries.length === 0 && (
+          <Card><div style={{ textAlign:'center', padding:'24px 0', color:T.muted, fontSize:13 }}>No entries for {dateLabel.toLowerCase()}</div></Card>
+        )}
+        {allEntries.map(entry => {
+          const isContact = entry._type === 'contact'
+          const expanded = expandedId === entry.id
+          return (
+            <div key={entry.id} onClick={() => setExpandedId(expanded ? null : entry.id)} style={{ background:T.white, border:`1px solid ${expanded ? T.mist : T.border}`, borderLeft:`3px solid ${isContact ? '#3080C0' : T.sage}`, borderRadius:12, padding:'12px 14px', marginBottom:8, cursor:'pointer', transition:'all 0.15s' }}>
+              <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                <div style={{ fontSize:15, marginTop:1 }}>{isContact ? (ctIcons[entry.contact_type] || '📝') : '📋'}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12, fontWeight:500, color:T.dark }}>
+                    {privacy(ypName(entry.young_person_id))}
+                    {isContact ? ` · ${ctLabels[entry.contact_type] || entry.contact_type}` : ' · Session'}
+                  </div>
+                  {!expanded && <div style={{ fontSize:11, color:T.muted, fontWeight:300, lineHeight:1.4, marginTop:3 }}>{(entry.ai_cleaned_notes || entry.ai_summary || entry.notes || '').slice(0, 100)}{(entry.notes?.length || 0) > 100 ? '...' : ''}</div>}
+                </div>
+              </div>
+              {expanded && (
+                <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${T.border}` }}>
+                  <div style={{ fontSize:12, lineHeight:1.65, color:T.mid, fontWeight:300 }}>{entry.ai_cleaned_notes || entry.ai_summary || entry.notes || 'No notes'}</div>
+                  {entry.safeguarding_concern && <div style={{ marginTop:8, padding:'6px 10px', background:T.rosePale, borderRadius:8, fontSize:11, color:T.rose, fontWeight:500 }}>⚑ {entry.safeguarding_concern}</div>}
+                  <div style={{ display:'flex', gap:8, marginTop:10 }}>
+                    <button onClick={(e) => { e.stopPropagation(); exportAndCopy(isContact ? formatContactExport(entry, ypName(entry.young_person_id)) : formatSessionExport(entry, ypName(entry.young_person_id))) }} style={{ fontSize:11, color:T.sage, background:T.pale, border:`1px solid ${T.mist}`, borderRadius:8, padding:'5px 10px', cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>📋 Copy</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {allEntries.length > 0 && (
+          <div style={{ display:'flex', gap:8, marginTop:6 }}>
+            <button className="btn-s" style={{ flex:1 }} onClick={() => exportAndCopy(formatDailyExport(sessions, contactLogs, youngPeople, viewDate))}>📋 Copy day</button>
+            <button className="btn-s" style={{ flex:1 }} onClick={() => {
+              const text = formatDailyExport(sessions, contactLogs, youngPeople, viewDate)
+              const w = window.open('', '_blank')
+              w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Daily Diary — ${viewDate}</title><style>body{font-family:Arial,sans-serif;font-size:13px;line-height:1.7;padding:40px;color:#1C2C22;max-width:800px;white-space:pre-wrap}@media print{body{padding:20px}}</style></head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</body></html>`)
+              w.document.close()
+              setTimeout(() => w.print(), 300)
+            }}>📄 Print day</button>
+          </div>
+        )}
+      </div>
+      <BottomNav active="diary" onNav={onNav} />
     </div>
   )
 }
@@ -917,10 +1018,14 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
               </div>
             </div>
           )}
-          {ypMarkers.map(m => (
+          {ypMarkers.map(m => {
+            const daysSince = m.last_date ? Math.floor((Date.now() - new Date(m.last_date)) / 86400000) : null
+            const agoText = daysSince !== null ? (daysSince === 0 ? 'Today' : daysSince === 1 ? '1 day ago' : `${daysSince} days ago`) : ''
+            return (
             <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:`1px solid ${T.border}` }}>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:12, fontWeight:500, color: m.status === 'active' ? T.rose : T.dark }}>{markerLabels[m.marker_type] || m.marker_type}</div>
+                {agoText && <div style={{ fontSize:11, color: m.status === 'active' ? '#C07050' : T.muted, fontWeight:400, marginTop:1 }}>{agoText}</div>}
                 {m.notes && <div style={{ fontSize:11, color:T.muted, fontWeight:300, marginTop:2, lineHeight:1.4 }}>{m.notes}</div>}
                 <div onClick={() => updateMarkerStatus(m, m.status === 'active' ? 'historic' : 'active')} style={{ fontSize:10, color:T.sage, cursor:'pointer', marginTop:4, fontWeight:500 }}>
                   {m.status === 'active' ? 'Mark as historic' : 'Mark as active'}
@@ -931,7 +1036,8 @@ function ProfileScreen({ yp, sessions, onNav, onBack, showPrepPrompt, privacy = 
                 <span style={{ fontSize:9, fontWeight:600, padding:'2px 8px', borderRadius:20, background: m.status === 'active' ? T.rosePale : T.pale, color: m.status === 'active' ? T.rose : T.sage, textTransform:'uppercase', letterSpacing:'0.06em' }}>{m.status}</span>
               </div>
             </div>
-          ))}
+            )
+          })}
         </Card>
 
         {/* Contact Log */}
@@ -1328,9 +1434,8 @@ function LogScreen({ yp: initialYP, sessions, mentor, orgId, onDone, onBack, pri
         <Card>
           <div className="inp-label">Safeguarding</div>
           {!showSG ? (
-            <div style={{ display:'flex', gap:8 }}>
-              <button style={{ flex:1, padding:11, background:T.bg, border:`1px solid ${T.border}`, borderRadius:12, fontSize:12, fontWeight:500, color:T.muted, cursor:'pointer', fontFamily:"'Outfit',sans-serif" }} onClick={() => save()}>Nothing to flag</button>
-              <button style={{ flex:1, padding:11, background:T.rosePale, border:'1px solid #EDCACA', borderRadius:12, fontSize:12, fontWeight:500, color:T.rose, cursor:'pointer', fontFamily:"'Outfit',sans-serif" }} onClick={() => setShowSG(true)}>Raise concern ⚑</button>
+            <div>
+              <button style={{ width:'100%', padding:11, background:T.rosePale, border:'1px solid #EDCACA', borderRadius:12, fontSize:12, fontWeight:500, color:T.rose, cursor:'pointer', fontFamily:"'Outfit',sans-serif" }} onClick={() => setShowSG(true)}>Raise concern ⚑</button>
             </div>
           ) : (
             <>
@@ -1359,6 +1464,9 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
   const [recording, setRecording] = useState(false)
   const [cleaning, setCleaning] = useState(false)
   const [cleanedNotes, setCleanedNotes] = useState(null)
+  const [contactDate, setContactDate] = useState(new Date().toISOString().split('T')[0])
+  const [attendance, setAttendance] = useState('')
+  const [outcome, setOutcome] = useState('')
 
   const contactTypes = [
     { value:'call', label:'Phone call', icon:'📞' },
@@ -1424,11 +1532,13 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
           org_id: orgId,
           young_person_id: selectedYP || null,
           mentor_id: mentor?.id === 'demo' ? null : mentor?.id,
-          date: new Date().toISOString().split('T')[0],
+          date: contactDate,
           contact_type: contactType,
           professional_involved: professional.trim() || null,
           notes: notes.trim(),
           ai_cleaned_notes: cleanedNotes || null,
+          attendance: attendance || null,
+          outcome: outcome.trim() || null,
         })
       })
       setSaved(true)
@@ -1441,10 +1551,15 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
       <div style={{ textAlign:'center', padding:40 }}>
         <div style={{ width:56, height:56, borderRadius:'50%', background:T.pale, border:`1.5px solid ${T.mist}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22, color:T.sage }}>✓</div>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.dark, marginBottom:6 }}>Logged</div>
-        <div style={{ fontSize:13, color:T.muted, marginBottom:20 }}>Contact recorded.</div>
-        <button onClick={() => exportAndCopy(formatContactExport({ date: new Date().toISOString().split('T')[0], contact_type: contactType, professional_involved: professional.trim() || null, notes: cleanedNotes || notes, ai_cleaned_notes: cleanedNotes }, selectedYP ? youngPeople.find(y => y.id === selectedYP)?.name : 'General'))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'10px 20px', fontSize:13, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500, display:'block', width:'100%', maxWidth:260, margin:'0 auto 10px' }}>
-          📋 Copy to clipboard
-        </button>
+        <div style={{ fontSize:13, color:T.muted, marginBottom:20 }}>Contact recorded for {contactDate}.</div>
+        <div style={{ display:'flex', gap:8, justifyContent:'center', marginBottom:14, flexWrap:'wrap' }}>
+          <button onClick={() => { setSaved(false); setNotes(''); setCleanedNotes(null); setOutcome(''); setAttendance(''); setProfessional('') }} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'10px 16px', fontSize:13, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>
+            + Log another
+          </button>
+          <button onClick={() => exportAndCopy(formatContactExport({ date: contactDate, contact_type: contactType, professional_involved: professional.trim() || null, notes: cleanedNotes || notes, ai_cleaned_notes: cleanedNotes, attendance, outcome }, selectedYP ? youngPeople.find(y => y.id === selectedYP)?.name : 'General'))} style={{ background:'none', border:`1px solid ${T.border}`, borderRadius:10, padding:'10px 16px', fontSize:13, color:T.sage, cursor:'pointer', fontFamily:"'Outfit',sans-serif", fontWeight:500 }}>
+            📋 Copy
+          </button>
+        </div>
         <button onClick={onDone} className="btn-p" style={{ maxWidth:260, margin:'0 auto' }}>
           Done →
         </button>
@@ -1456,11 +1571,17 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
     <div className="screen active slide-in">
       <button className="back" onClick={onBack}>← Back</button>
       <div className="sh">
-        <div className="sh-eye">Quick Log</div>
-        <div className="sh-title">Record a <em>contact</em></div>
+        <div className="sh-eye">Contact diary</div>
+        <div className="sh-title">Log a <em>contact</em></div>
       </div>
       <div className="body-start" />
       <div className="scroll">
+
+        {/* Date picker */}
+        <Card>
+          <div className="inp-label">Date</div>
+          <input className="inp" type="date" value={contactDate} onChange={e => setContactDate(e.target.value)} />
+        </Card>
 
         {/* Contact type */}
         <Card>
@@ -1497,6 +1618,32 @@ function QuickLogScreen({ youngPeople, mentor, orgId, onDone, onBack, privacy = 
             <input className="inp" type="text" placeholder="e.g. Social worker - Jane Smith, Police, School" value={professional} onChange={e => setProfessional(e.target.value)} />
           </Card>
         )}
+
+        {/* Attendance / Outcome */}
+        <Card>
+          <div className="inp-label">Attendance</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
+            {[
+              { value:'attended', label:'Attended' },
+              { value:'no_answer', label:'No answer' },
+              { value:'cancelled', label:'Cancelled' },
+              { value:'dna', label:'Did not attend' },
+              { value:'rescheduled', label:'Rescheduled' },
+            ].map(opt => (
+              <button key={opt.value} onClick={() => setAttendance(attendance === opt.value ? '' : opt.value)} style={{
+                padding:'6px 12px', borderRadius:20,
+                border:`1.5px solid ${attendance === opt.value ? (opt.value === 'attended' ? T.sage : '#E8A44A') : T.border}`,
+                background: attendance === opt.value ? (opt.value === 'attended' ? T.pale : '#FDF3E3') : 'transparent',
+                color: attendance === opt.value ? (opt.value === 'attended' ? T.sage : '#7A5020') : T.muted,
+                fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:"'Outfit',sans-serif",
+              }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="inp-label">Outcome / next step</div>
+          <input className="inp" type="text" placeholder="e.g. Agreed to meet Thursday, no reply, left voicemail" value={outcome} onChange={e => setOutcome(e.target.value)} />
+        </Card>
 
         {/* Notes with voice */}
         <Card>
@@ -1619,7 +1766,7 @@ function AddYPScreen({ orgId, onDone, onBack }) {
 }
 
 // ── SCREEN: IMPACT REPORT ──
-function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
+function ReportScreen({ sessions, youngPeople, mentor, onBack, riskMarkers = [], contactLogs = [] }) {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(false)
   const [generated, setGenerated] = useState(false)
@@ -1656,6 +1803,20 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
 
   const totalSessions = sessions.length
   const uniqueYP = [...new Set(sessions.map(s => s.young_person_id))].length
+  const totalContacts = contactLogs.length
+  const sgCount = sessions.filter(s => s.safeguarding_concern?.trim()).length
+  const highlightSessions = sessions.filter(s => s.is_highlight)
+
+  // Funder per-YP stats
+  const funderStats = youngPeople.map(yp => {
+    const ypSess = sessions.filter(s => s.young_person_id === yp.id)
+    const ypMarkers = riskMarkers.filter(m => m.young_person_id === yp.id)
+    const ypContacts = contactLogs.filter(c => c.young_person_id === yp.id)
+    const lastArrest = ypMarkers.find(m => m.marker_type === 'arrested')
+    const stage = ypSess[0]?.focus_step || 'Early'
+    const engaged = ypContacts.some(c => (Date.now() - new Date(c.date)) < 30 * 86400000) || ypSess.some(s => (Date.now() - new Date(s.date)) < 30 * 86400000)
+    return { name: yp.name, sessions: ypSess.length, contacts: ypContacts.length, stage, engaged, lastArrest: lastArrest?.last_date || '—' }
+  })
 
   const stageDist = {}
   STEPS.forEach(s => stageDist[s] = 0)
@@ -1676,8 +1837,52 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
       <div className="scroll">
         <div className="report-hero">
           <div className="rh-title">{mentor?.organisations?.name || 'Your Organisation'}</div>
-          <div className="rh-sub">{totalSessions} sessions · {uniqueYP} young people · AI generated</div>
+          <div className="rh-sub">{totalSessions} sessions · {totalContacts} contacts · {uniqueYP} young people</div>
         </div>
+
+        {/* Funder summary data table */}
+        <Card>
+          <div className="card-label">Funder summary data</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+            {[
+              { label:'Young people', value: youngPeople.length },
+              { label:'Actively engaged', value: funderStats.filter(f => f.engaged).length },
+              { label:'Total sessions', value: totalSessions },
+              { label:'Total contacts', value: totalContacts },
+              { label:'SG concerns', value: sgCount },
+              { label:'Highlights', value: highlightSessions.length },
+            ].map(item => (
+              <div key={item.label} style={{ textAlign:'center', padding:'8px 4px', background:T.bg, borderRadius:10 }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:300, color:T.sage }}>{item.value}</div>
+                <div style={{ fontSize:8, color:T.muted, textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ borderBottom:`1px solid ${T.border}` }}>
+                  <th style={{ textAlign:'left', padding:'6px 4px', color:T.muted, fontWeight:600, fontSize:9, textTransform:'uppercase', letterSpacing:'0.08em' }}>Name</th>
+                  <th style={{ textAlign:'center', padding:'6px 4px', color:T.muted, fontWeight:600, fontSize:9, textTransform:'uppercase', letterSpacing:'0.08em' }}>Stage</th>
+                  <th style={{ textAlign:'center', padding:'6px 4px', color:T.muted, fontWeight:600, fontSize:9, textTransform:'uppercase', letterSpacing:'0.08em' }}>Sess.</th>
+                  <th style={{ textAlign:'center', padding:'6px 4px', color:T.muted, fontWeight:600, fontSize:9, textTransform:'uppercase', letterSpacing:'0.08em' }}>Active</th>
+                  <th style={{ textAlign:'center', padding:'6px 4px', color:T.muted, fontWeight:600, fontSize:9, textTransform:'uppercase', letterSpacing:'0.08em' }}>Last arrest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funderStats.map(f => (
+                  <tr key={f.name} style={{ borderBottom:`1px solid ${T.border}` }}>
+                    <td style={{ padding:'6px 4px', fontWeight:500, color:T.dark }}>{f.name}</td>
+                    <td style={{ padding:'6px 4px', textAlign:'center' }}><StageBadge stage={f.stage} /></td>
+                    <td style={{ padding:'6px 4px', textAlign:'center', color:T.mid }}>{f.sessions}</td>
+                    <td style={{ padding:'6px 4px', textAlign:'center', color: f.engaged ? T.sage : T.rose }}>{f.engaged ? '✓' : '—'}</td>
+                    <td style={{ padding:'6px 4px', textAlign:'center', color:T.muted, fontSize:10 }}>{f.lastArrest}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
         {!generated && (
           <Card>
@@ -1789,7 +1994,7 @@ function ReportScreen({ sessions, youngPeople, mentor, onBack }) {
 }
 
 // ── SCREEN: INSIGHTS ──
-function InsightsScreen({ sessions, youngPeople, onNav }) {
+function InsightsScreen({ sessions, youngPeople, onNav, contactLogs = [] }) {
   const totalSessions = sessions.length
   const last30 = sessions.filter(s => {
     const d = new Date(s.date)
@@ -2174,7 +2379,7 @@ export default function Dashboard() {
           fetch(`/api/contact-logs?orgId=${demoOrgId}`).catch(() => ({ json: async () => [] })),
           fetch(`/api/scheduled-sessions?orgId=${demoOrgId}`).catch(() => ({ json: async () => [] })),
         ])
-        setMentor({ name: 'Jordan Clarke', id: 'demo', email: 'jordan@riverside.org.uk', org_id: demoOrgId, role: 'admin', work_context: 'youth_mentoring', organisations: { name: 'Riverside Youth Trust' } })
+        setMentor({ name: 'Dionne Edwards', id: 'demo', email: 'dionne@actionforchildren.org.uk', org_id: demoOrgId, role: 'admin', work_context: 'violence_prevention', organisations: { name: 'Action for Children VPU' } })
         const ypData = await ypRes.json()
         setYP(ypData)
         setSessions(await sessRes.json())
@@ -2229,7 +2434,7 @@ export default function Dashboard() {
             fetch('/api/young-people?orgId=all'),
             fetch('/api/sessions?orgId=all'),
           ])
-          setMentor({ name: 'Jordan', id: 'demo', email: 'demo@tend.app', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
+          setMentor({ name: 'Dionne', id: 'demo', email: 'demo@tend.app', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', work_context: 'violence_prevention', organisations: { name: 'Action for Children VPU' } })
           setYP(await ypRes.json())
           setSessions(await sessRes.json())
           setOnboardingDone(true)
@@ -2240,7 +2445,7 @@ export default function Dashboard() {
           fetch('/api/young-people?orgId=all'),
           fetch('/api/sessions?orgId=all'),
         ])
-        setMentor({ name: 'Jordan', id: 'demo', email: 'demo@tend.app', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', organisations: { name: 'Riverside Youth Trust' } })
+        setMentor({ name: 'Dionne', id: 'demo', email: 'demo@tend.app', org_id: '00000000-0000-0000-0000-000000000001', role: 'admin', work_context: 'violence_prevention', organisations: { name: 'Action for Children VPU' } })
         setYP(await ypRes.json())
         setSessions(await sessRes.json())
         setOnboardingDone(true)
@@ -2518,21 +2723,22 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      {screen === 'diary' && <DiaryScreen sessions={sessions} contactLogs={contactLogs} youngPeople={youngPeople} onNav={nav} privacy={pn} />}
       {screen === 'people' && <PeopleScreen youngPeople={youngPeople} sessions={sessions} onNav={nav} onSelectYP={onSelectYP} mentor={mentor} privacy={pn} />}
       {screen === 'sessions' && <SessionsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} onSelectSession={setSelectedSession} onSelectYP={onSelectYP} privacy={pn} />}
-      {screen === 'insights' && <InsightsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} />}
+      {screen === 'insights' && <InsightsScreen sessions={sessions} youngPeople={youngPeople} onNav={nav} contactLogs={contactLogs} />}
       {screen === 'profile' && selectedYP && <ProfileScreen yp={selectedYP} sessions={sessions} onNav={nav} onBack={() => setScreen('people')} showPrepPrompt={showPrepPrompt} privacy={pn} contactLogs={contactLogs} riskMarkers={riskMarkers} onRefresh={() => refreshData()} />}
       {screen === 'prep' && <PrepScreen yp={selectedYP || youngPeople[0]} sessions={sessions} mentor={mentor} onNav={nav} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} privacy={pn} />}
       {screen === 'log' && <LogScreen yp={logYP} sessions={sessions} mentor={mentor} orgId={orgId} onDone={onDoneLog} onBack={() => setScreen('home')} privacy={pn} youngPeople={youngPeople} />}
       {screen === 'quick-log' && <QuickLogScreen youngPeople={youngPeople} mentor={mentor} orgId={orgId} onDone={async () => { await refreshData(); setScreen('home') }} onBack={() => setScreen('home')} privacy={pn} />}
       {screen === 'add-yp' && <AddYPScreen orgId={orgId} onDone={onDoneAddYP} onBack={() => setScreen('people')} />}
       {screen === 'schedule' && <ScheduleScreen yp={selectedYP} youngPeople={youngPeople} orgId={orgId} mentor={mentor} onDone={async () => { await refreshData(); setScreen('home') }} onBack={() => setScreen(selectedYP ? 'profile' : 'home')} privacy={pn} />}
-      {screen === 'report' && <ReportScreen sessions={sessions} youngPeople={youngPeople} mentor={mentor} onBack={() => setScreen('home')} />}
+      {screen === 'report' && <ReportScreen sessions={sessions} youngPeople={youngPeople} mentor={mentor} onBack={() => setScreen('home')} riskMarkers={riskMarkers} contactLogs={contactLogs} />}
       {screen === 'safeguarding' && <SafeguardingScreen sessions={sessions} youngPeople={youngPeople} onBack={() => setScreen('home')} privacy={pn} />}
       {screen === 'settings' && <SettingsScreen mentor={mentor} onBack={() => setScreen('home')} onUpdateMentor={onUpdateMentor} onSignOut={onSignOut} />}
 
       {/* Floating Quick Log button — visible on all main screens */}
-      {['home','people','sessions','insights','profile'].includes(screen) && (
+      {['home','people','diary','insights','profile'].includes(screen) && (
         <div onClick={() => nav('quick-log')} style={{ position:'fixed', bottom: 90, right: 20, width:52, height:52, borderRadius:'50%', background:T.forest, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 4px 16px rgba(28,44,34,0.25)', zIndex:99, transition:'transform 0.2s' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M12 5V19M5 12H19" stroke="white" strokeWidth="2" strokeLinecap="round"/>
