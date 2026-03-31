@@ -1,24 +1,27 @@
-import './globals.css'
+import "./globals.css";
 
 export const metadata = {
-  title: 'Tend — Mentoring Intelligence',
-  description: 'AI-powered session prep, journey tracking, and impact reporting for youth mentors.',
-  manifest: '/manifest.json',
+  title: "SilkFutures Pathways",
+  description: "Youth mentoring assessment and tracking platform",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'Tend',
+    statusBarStyle: "default",
+    title: "Pathways",
   },
-}
+  formatDetection: {
+    telephone: false,
+  },
+};
 
 export const viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#F4F7F4',
-  viewportFit: 'cover',
-}
+  themeColor: "#FFFFFF",
+  viewportFit: "cover",
+};
 
 export default function RootLayout({ children }) {
   return (
@@ -26,9 +29,10 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Tend" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Pathways" />
       </head>
       <body>{children}</body>
     </html>
-  )
+  );
 }

@@ -1,11 +1,11 @@
 {
-  "name": "Tend",
-  "short_name": "Tend",
-  "description": "Mentoring intelligence for the people doing the work",
-  "start_url": "/dashboard",
+  "name": "SilkFutures Pathways",
+  "short_name": "Pathways",
+  "description": "Youth mentoring assessment and tracking",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#1C2C22",
-  "theme_color": "#F4F7F4",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
   "orientation": "portrait",
   "icons": [
     {
